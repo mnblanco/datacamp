@@ -1,0 +1,584 @@
+---
+title: "Untitled"
+author: "Marjorie Blanco"
+date: "11/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, message=FALSE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# Clear packages 
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(
+  paste("package:", names(sessionInfo()$otherPkgs), sep=""), 
+  detach, character.only = TRUE, unload = TRUE)
+
+# Clear environment
+rm(list = ls(all = TRUE))
+
+require(graphics)
+library(ggplot2)
+library(ggthemes)
+library(ggcorrplot)
+library(dplyr)
+library(FactoMineR)
+library(ade4)
+library(factoextra)
+library(paran)
+library(datasets)
+library(psych)
+library(VIM)
+library(missMDA)
+if(!require(pcaMethods)){
+  source("https://bioconductor.org/biocLite.R")
+  biocLite("pcaMethods")
+}
+library(pcaMethods)
+library(NMF)
+library(tibble)
+library(ggcorrplot)
+library(polycor)
+library(GPArotation)
+library(readr)
+library(psych)
+#http://jse.amstat.org/jse_data_archive.htm
+```
+
+## Principal component analysis (PCA)
+
+As a data scientist, you'll frequently have to deal with messy and high-dimensional datasets. In this chapter, you'll learn how to use Principal Component Analysis (PCA) to effectively reduce the dimensionality of such datasets so that it becomes easier to extract actionable insights from them.
+
+```{r}
+dim(iris)
+range(iris$Sepal.Length)
+range(iris$Petal.Length)
+range(iris$Sepal.Width)
+
+t1 <- theme_tufte() + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+a <- ggplot(iris, aes(x = Sepal.Length, y = Petal.Length)) + theme_tufte()
+            
+a + geom_point(aes(color=Species))
+
+mtcars$cyl <- as.numeric(as.character(mtcars$cyl))
+mtcars_correl <- cor(mtcars, use = "complete.obs")
+
+ggcorrplot(mtcars_correl)
+
+mtcars_pca <- prcomp(mtcars)
+mtcars_pca <- PCA(mtcars)
+#cyl, displ, wt take positive values  - light and economical
+#mpg take negative values (oppositive)  - powerful and heavy
+
+#cars with many gears (higher values)  - am (Transmission), drat (Rear axle ratio)
+#vs (Engine (0 = V-shaped, 1 = straight)) and qsec (1/4 mile time) (lower values)
+
+mtcars_pca$eig
+dimdesc(mtcars_pca)
+
+#Plotting contributions of variables
+#contributions variable on the construction of the principal components
+fviz_pca_var(mtcars_pca, 
+ col.var = "contrib",
+ gradient.cols = c("#bb2e00", "#002bbb"),
+ repel = TRUE)
+
+#Plotting contributions of selected variables
+#contributions variable on the construction of the principal components
+fviz_pca_var(mtcars_pca,
+ select.var = list(contrib = 4),
+ repel = TRUE)
+
+#Barplotting the contributions of variables
+#red line is exprcted % if contribution is uniform
+fviz_contrib(mtcars_pca,
+    choice = "var",
+    axes = 1,
+    top = 5)
+
+#Plotting cos2 for individuals
+
+fviz_pca_ind(mtcars_pca,
+    col.ind="cos2",
+    gradient.cols = c("#bb2e00", "#002bbb"),
+    repel = TRUE)
+
+fviz_pca_ind(mtcars_pca, 
+    select.ind = list(cos2 = 0.8),
+    gradient.cols = c("#bb2e00", "#002bbb"),
+    repel = TRUE)
+
+#Barplotting cos2 for individuals
+#top ten in the fist dimension
+fviz_cos2(mtcars_pca,
+    choice = "ind", 
+    axes = 1, 
+    top = 10)
+
+#Biplots
+
+fviz_pca_biplot(mtcars_pca)
+
+mtcars$cyl <- as.factor(mtcars$cyl)
+
+fviz_pca_ind(mtcars_pca, 
+    label="var",
+    habillage=mtcars$cyl,
+    addEllipses=TRUE)
+```
+
+
+```{r}
+cars <- read.delim("~/GitHub/datacamp/pca/04cars.dat.txt", header=FALSE, na.strings="*", stringsAsFactors=FALSE)       
+colnames(cars) <-  c("Vehicle.Name","Sports.Car","SUV","Wagon","Minivan","Pickup","AWD","RWD","Retail.Price","Dealer.Cost","Engine.Size","Cyl","HP","City.MPG","Highway.MPG","Weight","Wheel.Base","Length","Width")
+
+cars$City.MPG <- as.integer(cars$City.MPG)
+cars$Weight <- as.integer(cars$Weight)
+
+dim(cars)
+
+#need to remove na
+cars <- cars %>% na.omit()
+
+# Why reduce dimensionality?
+# Let's begin by motivating why we want to reduce dimensionality in the first place. Choose the correct response from the options below.
+# 
+# reveal the most important variables.
+# To deal with fewer data observations.
+# To explain as much data variation as possible while discarding highly correlated variables. <<<
+# To discover the cause of variation in the data.
+
+#Explaining data variation and handling correlation efficiently are the two key reasons for conducting dimensionality reduction!
+
+# Explore cars with summary().
+summary(cars)
+
+# Small.Sporty..Compact.Large.Sedan   Sports.Car          SUV        
+#  Min.   :0.0000                    Min.   :0.0000   Min.   :0.0000  
+#  1st Qu.:0.0000                    1st Qu.:0.0000   1st Qu.:0.0000  
+#  Median :1.0000                    Median :0.0000   Median :0.0000  
+#  Mean   :0.6047                    Mean   :0.1163   Mean   :0.1525  
+#  3rd Qu.:1.0000                    3rd Qu.:0.0000   3rd Qu.:0.0000  
+#  Max.   :1.0000                    Max.   :1.0000   Max.   :1.0000  
+#      Wagon            Minivan            Pickup       AWD        
+#  Min.   :0.00000   Min.   :0.00000   Min.   :0   Min.   :0.0000  
+#  1st Qu.:0.00000   1st Qu.:0.00000   1st Qu.:0   1st Qu.:0.0000  
+#  Median :0.00000   Median :0.00000   Median :0   Median :0.0000  
+#  Mean   :0.07494   Mean   :0.05168   Mean   :0   Mean   :0.2016  
+#  3rd Qu.:0.00000   3rd Qu.:0.00000   3rd Qu.:0   3rd Qu.:0.0000  
+#  Max.   :1.00000   Max.   :1.00000   Max.   :0   Max.   :1.0000  
+#       RWD          Retail.Price     Dealer.Cost     Engine.Size..l.
+#  Min.   :0.0000   Min.   : 10280   Min.   :  9875   Min.   :1.400  
+#  1st Qu.:0.0000   1st Qu.: 20997   1st Qu.: 19575   1st Qu.:2.300  
+#  Median :0.0000   Median : 28495   Median : 26155   Median :3.000  
+#  Mean   :0.2429   Mean   : 33231   Mean   : 30441   Mean   :3.127  
+#  3rd Qu.:0.0000   3rd Qu.: 39552   3rd Qu.: 36124   3rd Qu.:3.800  
+#  Max.   :1.0000   Max.   :192465   Max.   :173560   Max.   :6.000  
+#       Cyl               HP           City.MPG        Hwy.MPG     
+#  Min.   : 3.000   Min.   : 73.0   Min.   :10.00   Min.   :12.00  
+#  1st Qu.: 4.000   1st Qu.:165.0   1st Qu.:18.00   1st Qu.:24.00  
+#  Median : 6.000   Median :210.0   Median :19.00   Median :27.00  
+#  Mean   : 5.757   Mean   :214.4   Mean   :20.31   Mean   :27.26  
+#  3rd Qu.: 6.000   3rd Qu.:250.0   3rd Qu.:21.50   3rd Qu.:30.00  
+#  Max.   :12.000   Max.   :493.0   Max.   :60.00   Max.   :66.00  
+#      Weight       Wheel.Base         Len          Width      
+#  Min.   :1850   Min.   : 89.0   Min.   :143   Min.   :64.00  
+#  1st Qu.:3107   1st Qu.:103.0   1st Qu.:177   1st Qu.:69.00  
+#  Median :3469   Median :107.0   Median :186   Median :71.00  
+#  Mean   :3532   Mean   :107.2   Mean   :185   Mean   :71.28  
+#  3rd Qu.:3922   3rd Qu.:112.0   3rd Qu.:193   3rd Qu.:73.00  
+#  Max.   :6400   Max.   :130.0   Max.   :221   Max.   :81.00  
+#                                 type     wheeltype
+#  Minivan                          : 20   AWD:183  
+#  Pickup                           :  0   RWD:204  
+#  Small.Sporty..Compact.Large.Sedan:234            
+#  Sports.Car                       : 45            
+#  SUV                              : 59            
+#  Wagon                            : 29
+
+
+# Run a PCA with active and supplementary variables
+pca_output_all <- PCA(cars, quanti.sup = 1:8, quali.sup = 20:21, graph = F)
+
+# Get the most correlated variables
+dimdesc(pca_output_all, axes = 1:2)
+
+# Run a PCA on the first 100 car categories
+pca_output_hundred <- PCA(cars, quanti.sup = 1:8, quali.sup = 20:21, ind.sup = 1:100, graph = F)
+
+# Trace variable contributions in pca_output_hundred 
+pca_output_hundred$var$contrib
+
+
+# Get the correlation matrix with cor()
+correl <- cor(cars[,9:19], use = "complete.obs")
+
+# Use ggcorrplot() to explore the correlation matrix
+ggcorrplot(correl)
+
+# Conduct hierarchical clustering on the correlation matrix
+ggcorrplot_clustered <- ggcorrplot(correl, hc.order = TRUE, type = "lower")
+ggcorrplot_clustered
+
+# Run a PCA for the 10 non-binary numeric variables of cars.
+pca_output_ten_v <- PCA(cars[,9:19], ncp = 4, graph = F)
+
+# Get the summary of the first 100 cars.
+summary(pca_output_ten_v, nbelements = 100)
+
+# Get the variance of the first 3 new dimensions
+pca_output_ten_v$eig[,2][1:3]
+
+# Get the cumulative variance
+pca_output_ten_v$eig[,3][1:3]
+
+#You have now created you first PCA model objects! It's time to explore PCA() a bit more.
+
+# Run a PCA with active and supplementary variables does not work because columns are missing
+#pca_output_all <- PCA(cars, quanti.sup = 2:8, quali.sup = 20:21, graph = F)
+
+# > colnames(cars[,1:8])
+# [1] "Small.Sporty..Compact.Large.Sedan" "Sports.Car"                       
+# [3] "SUV"                               "Wagon"                            
+# [5] "Minivan"                           "Pickup"                           
+# [7] "AWD"                               "RWD"
+# > colnames(cars[,20:21])  << missing this information
+# [1] "type"      "wheeltype"
+
+# Run a PCA on the first 100 car categories
+pca_output_hundred <- PCA(cars, quanti.sup = 1:8, quali.sup = 20:21, ind.sup=101:nrow(cars), graph = F)
+
+
+
+# Run a PCA using the 10 non-binary numeric variables
+cars_pca <- dudi.pca(cars[,9:19], scannf = FALSE, nf = 4)
+
+# Explore the summary of cars_pca
+summary(cars_pca)
+
+# Explore the summary of pca_output_ten_v
+summary(pca_output_ten_v)
+
+
+pca_output_all <- PCA(cars, quanti.sup = 2:8, quali.sup = 1 , graph = F)
+
+fviz_pca_var(pca_output_all, select.var = list(cos2 = 0.7), repel = TRUE)
+
+# Modify the code to create a factor map for the individuals
+fviz_pca_ind(pca_output_all, select.ind = list(cos2 = 0.7), repel = TRUE)
+
+
+# Create a barplot for the variables with the highest cos2 in the 1st PC
+fviz_cos2(pca_output_all, choice = "var", axes = 1, top = 10)
+
+# Create a barplot for the variables with the highest cos2 in the 2nd PC
+fviz_cos2(pca_output_all, choice = "var", axes = 2, top = 10)
+
+# Create a factor map for the top 5 variables with the highest contributions
+fviz_pca_var(pca_output_all, select.var = list(contrib = 5), repel = TRUE)
+
+# Create a factor map for the top 5 individuals with the highest contributions
+fviz_pca_ind(pca_output_all, select.ind = list(contrib = 5), repel = TRUE)
+
+# Create a barplot for the variables with the highest contributions to the 1st PC
+fviz_contrib(pca_output_all, choice = "var", axes = 1,
+top = 5)
+
+# Create a barplot for the variables with the highest contributions to the 2nd PC
+fviz_contrib(pca_output_all, choice = "var", axes = 2,
+top = 5)
+
+#Great! Now, you know what it means that a variable is important in the extraction of the principal components! You could compare the two different graphs. Which variables are in both dimensions very important and which ones are only in one of them?
+
+# Create a biplot with no labels for all individuals with the geom argument.
+fviz_pca_biplot(pca_output_all)
+
+# Create ellipsoids for wheeltype columns respectively.
+#fviz_pca_ind(pca_output_all, habillage = cars$wheeltype, addEllipses = TRUE)
+
+# Create the biplot with ellipsoids
+#fviz_pca_biplot(pca_output_all, habillage = cars$wheeltype, addEllipses = TRUE, alpha.var = "cos2")
+
+# Proximity of variables in a 2-D PCA plot
+# What does it mean when two variables are close to each other in a biplot?
+#   Both variables have small Euclidean distance.
+# 
+#   Well done! It's about time to dig into choices you have to make when conducting PCA. In the next chapter, you'll start by using some formal criteria in deciding how many PCs to retain.
+```
+
+## Advanced PCA & Non-negative matrix factorization (NNMF)
+
+Here, you'll build on your knowledge of PCA by tackling more advanced applications, such as dealing with missing data. You'll also become familiar with another essential dimensionality reduction technique called Non-negative matrix factorization (NNMF) and how to use it in R.
+
+```{r}
+mtcars$cyl <- as.integer(mtcars$cyl)
+mtcars_pca <- PCA(mtcars)
+
+fviz_screeplot(mtcars_pca, ncp=5)
+
+summary(mtcars_pca)
+
+mtcars_pca$eig
+
+get_eigenvalue(mtcars_pca)
+
+
+
+mtcars_pca_ret <- paran(mtcars, graph = TRUE)
+
+mtcars_pca_ret$Retained
+
+
+require(graphics) 
+pairs(airquality, panel = panel.smooth, main = "airquality data")
+
+# Conduct a PCA on the airquality dataset
+pca_air <- PCA(airquality)
+
+# Apply the Kaiser-Guttman rule
+summary(pca_air,  ncp = 4)
+
+# Perform the screeplot test
+fviz_screeplot(pca_air, ncp=5)
+#Compare the outputs of the three methods. Do they all agree on the number of components to keep?
+
+
+#airquality<-airquality %>% na.omit()
+
+# Conduct a parallel analysis with paran().
+air_paran <- paran(airquality[complete.cases(airquality), ])
+
+# Check out the suggested number of PCs to retain.
+air_paran$Retained
+
+# Conduct a parallel analysis.
+air_fa_parallel <- fa.parallel(airquality)
+
+# Check out the suggested number of PCs to retain.
+air_fa_parallel$ncomp
+
+
+sleep[!complete.cases(sleep),]
+sum(is.na(airquality))
+
+#Estimating missing values with missMDA
+
+nPCs <- estim_ncpPCA(as.matrix(sleep))
+
+completed_sleep <- imputePCA(sleep, ncp = nPCs$ncp,
+            scale = TRUE)
+PCA(completed_sleep$completeObs)
+
+
+sleep_pca_methods <- pca(sleep, nPcs=2, method="ppca", center = TRUE)
+
+imp_air_pcamethods <- completeObs(sleep_pca_methods)
+
+# Why is mean imputation problematic?
+# Why is using the mean to impute missing data not the best approach?
+#Because it will distort the real distribution of the variables if the data has a lot of missing values.
+
+
+# Check out the missing data.
+summary(airquality)
+
+# Check out the number of cells with missing values.
+sum(is.na(airquality))
+
+# Check out the number of rows with missing values.
+nrow(airquality[!complete.cases(airquality),])
+
+# Estimate the optimal number of dimensions for imputation.
+estim_ncpPCA(airquality, ncp.max=5) 
+
+
+#BBC's datasets live in: http://mlg.ucd.ie/datasets/bbc.html
+
+
+bbc_res <- readRDS("~/GitHub/datacamp/pca/bbc_res.rds")
+ 
+bbc_res <- nmf(bbc_tdm, 5)
+W <- basis(bbc_res)
+H <- coef(bbc_res)
+
+colnames(W) <- c("topic1", 
+    "topic2", "topic3",
+    "topic4", "topic5")
+
+data.frame(W) %>% 
+    rownames_to_column('words') %>%
+    arrange(. , desc(topic1))%>%
+    column_to_rownames('words')
+
+
+#https://cran.r-project.org/web/packages/tm/vignettes/tm.pdf
+
+#In the next two exercises, you will be detecting topics in corpora. corpus_tdm is loaded into your workspace, a term-document matrix of 50 texts sampled from the BBCsport dataset. The texts are classified in BBC's site in 5 different subject areas (athletics, cricket, football, rugby, tennis).
+
+# Get a 5-rank approximation of corpus_tdm.
+bbc_res <- nmf(corpus_tdm, 5)
+
+# Get the term-topic matrix W.
+W <- basis(bbc_res)
+
+# Check out the dimensions of W.
+dim(W)
+
+# Normalize W.
+normal_W <- apply(W, 2, FUN=normal)
+
+
+# Get the topic-text matrix H.
+H <- coef(bbc_res)
+
+# Check out the dimensions of H.
+dim(H)
+
+# Normalize H.
+normal_H <- apply(H, 2, FUN=normal)
+
+
+# Explore the nmf's algorithms.
+alg <- nmfAlgorithm()
+
+# Choose the algorithms implemented in R.
+R_alg <- nmfAlgorithm(version = "R")
+
+# Use the two-version algorithms.
+bbc_R_res <- nmf(corpus_tdm, 5, R_alg, .options='v')
+```
+
+## Exploratory factor analysis (EFA)
+
+Become familiar with exploratory factor analysis (EFA), another dimensionality reduction technique that is a natural extension to PCA.
+
+```{r}
+data(bfi)
+
+# Take a look at the head of bfi dataset.
+head(bfi)
+
+
+# When is it a better idea to use EFA instead of PCA and/or N-NMF?
+# When the variables are of ordinal type.
+library(readr)
+
+hsq <- read.csv("~/GitHub/datacamp/pca/humor_dataset.csv", sep=";")
+#hsq <-  select(hsq, Q1:Q32)
+summary(hsq)
+hsq_correl <- mixedCor(hsq, c=NULL, p=1:32)
+summary(hsq_correl)
+
+# Check out the dimensionality of hsq.
+dim(hsq)
+
+# Explore the correlation object hsq_correl.
+str(hsq_correl)
+
+# Getting the correlation matrix of the dataset.
+hsq_polychoric <- hsq_correl$rho
+
+# Explore the correlation structure of the dataset.
+ggcorrplot(hsq_polychoric)
+#Keep in mind that as colors get darker, the higher the correlation, positive or negative, is between the respective pairs of variables and the higher the chance is to conduct a meaningful EFA. However, can its colourful representation present a detailed insight of how the humour-related questions are related?
+
+# The Bartlett sphericity test
+
+# H0: There is no significant difference between the correlation matrix and the identity matrix of the same dimensionality.
+# H1: There is significant difference betweeen them and, thus, we have strong evidence that there are underlying factors.
+
+# A subset of the bfi dataset.
+bfi_s <- bfi[1:200, 1:25]
+
+# Calculate the correlations.
+bfi_hetcor <- hetcor(bfi_s)
+
+# Retrieve the correlation matrix.
+bfi_c <- bfi_hetcor$correlations
+
+
+# Apply the Bartlett test.
+bfi_factorability <- cortest.bartlett(bfi_c)
+
+bfi_factorability
+#note appers stat sig when sample size incrases
+#ratio number of instance and # of varibles is less than 5
+
+#The Kaiser-Meyer-Olkin (KMO) test for sampling adequacy
+
+KMO(bfi_c)
+#should be in the .6 (closer to 1 is the best)
+
+
+# Apply the Bartlett test on the correlation matrix.
+cortest.bartlett(hsq_polychoric)
+
+# Check the KMO index.
+KMO(hsq_polychoric)
+
+#Checking for data factorability is the first step within a systematic approach to conducting EFA. Based on Kaiser's (1975) classification, do the results suggest that we can move on to EFA?
+
+# Move on or step out of EFA?
+# Do the factorability tests of the previous exercise suggest that we can proceed in reducing hsq's dimensionality? Yes, they do suggest.
+
+
+# Correct! Both the p.value attribute of cortest.bartlett()'s output is very much lower than 0.05 and the MSA attribute of KMO()'s output, 0.87, is close to 1, which means that they both recommend that EFA.
+
+
+
+# EFA with 3 factors 
+f_bfi_minres <- fa(bfi_c, nfactors = 3, rotate = "none")
+
+# Sorted communality 
+f_bfi_minres_common <- sort(f_bfi_minres$communality, decreasing = TRUE)
+
+# create a dataframe for an improved overview
+data.frame(f_bfi_minres_common)
+
+
+# EFA with four factors.
+f_hsq <- fa(hsq_polychoric, nfactors=4)
+
+# Inspect the resulting EFA object.
+str(f_hsq)
+
+# Use maximum likelihood for extracting factors.
+fa(hsq_polychoric, nfactors=4, fm="mle")
+
+#You have successfully used two extraction methods and created your first EFA models! Observe the communalities and keep in mind that variables with a relatively high communality are being accounted fairly well by the four factors you chose to extract. Recall that a variable's communality represents the percentage of the variable's variance that can be explained by the factors, while the unique variance is due to variable's own idiosyncrasy and not to the common factors.
+
+# Use PAF on hsq_polychoric.
+ hsq_correl_pa <- fa(hsq_polychoric, nfactors=4, fm="pa")
+
+
+# Sort the communalities of the f_hsq_pa.
+f_hsq_pa_common <- sort(hsq_correl_pa$communality, decreasing = TRUE)
+
+# Sort the uniqueness of the f_hsq_pa.
+f_hsq_pa_unique <- sort(hsq_correl_pa$uniqueness, decreasing = TRUE)
+
+#Good! You have created an EFA model with PAF, a method that we did NOT see in the video! PAF is one of the most commonly used methods of extraction in EFA.
+
+# Based on the "minres" method.
+fa.parallel(bfi_c, n.obs = 200, 
+        fa = "fa", fm = "minres")
+
+# Check out the scree test and the Kaiser-Guttman criterion.
+fa.parallel(hsq_polychoric, n.obs = 1069, fa = "fa", fm = "minres")
+
+# Use parallel analysis for estimation with the minres extraction method.
+fa.parallel(hsq_polychoric, n.obs = 1069, fm = "minres", fa = "fa")
+
+# Use parallel analysis for estimation with the mle extraction method.
+fa.parallel(hsq_polychoric, n.obs = 1069, fm = "mle", fa = "fa")
+
+# Taking the actual decision
+# Based on the three tests that you conducted in the previous exercise, how many factors would you decide to retain? 4
+```
+
+
+## Advanced EFA
+
+
+
+##

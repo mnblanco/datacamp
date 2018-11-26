@@ -1,0 +1,146 @@
+---
+title: "Modeling with Basic Regression"
+author: "Marjorie Blanco"
+date: "11/2/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(moderndive)
+library(ggplot2)
+library(dplyr)
+```
+
+# Modeling with Basic Regression
+
+```{r}
+# Add log10_size
+house_prices <- house_prices %>%
+  mutate(log10_price = log10(price))
+
+
+# Plot 
+ggplot(evals, aes(x = age, y = score)) +
+  geom_point() +
+  labs(x = "age", y = "score", title = "Teaching score over age") +
+  geom_smooth(method = "lm")
+ggplot(evals, aes(x = age, y = score)) +
+  geom_point() +
+  labs(x = "age", y = "score", title = "Teaching score over age") +
+  geom_smooth(method = "lm", se = FALSE)
+
+# Fit model
+model_score_1 <- lm(score ~ age, data = evals)
+
+# Output content
+model_score_1
+
+# Output regression table
+get_regression_table(model_score_1)
+
+# Plot 
+ggplot(evals, aes(x = bty_avg, y = score)) +
+  geom_point() +
+  labs(x = "beauty score", y = "score", title = "Beauty average over age") +
+  geom_smooth(method = "lm", se = FALSE)
+
+#The overall trend seems to be positive! As instructors have higher “beauty” scores, so also do they tend to have higher teaching scores.
+
+# Fit model
+model_score_2 <- lm(score ~ bty_avg, data = evals)
+
+# Output content
+model_score_2
+
+# Output regression table
+get_regression_table(model_score_2)
+#For every increase of one in beauty score, you should observe an associated increase of on average 0.0670 units in teaching score.
+
+
+# Use fitted intercept and slope to get a prediction
+y_hat <- 3.88 + 0.067 * 5
+y_hat
+
+# Compute residual y - y_hat
+4.7 - 4.215
+#Was your visual guess close to the predicted teaching score of 4.215? Also, note that this prediction is off by about 0.485 units in teaching score.
+
+# Get all fitted/predicted values and residuals
+get_regression_points(model_score_2) %>% 
+  mutate(score_hat_2 = 3.88 + 0.067 * bty_avg)
+
+# Get all fitted/predicted values and residuals
+get_regression_points(model_score_2) %>% 
+  mutate(residual_2 = score - score_hat)
+
+
+ggplot(evals, aes(x = gender, y = score)) +
+  geom_boxplot() +
+  labs(x = "score", y = "count")
+
+
+ggplot(evals, aes(x = score)) +
+  geom_histogram(binwidth = 0.25) +
+  facet_wrap(~gender)
+  labs(x = "score", y = "count")
+  
+  
+get_regression_table(model_score_3)
+
+model_score_3 <- lm(score ~ gender, data = evals)
+
+get_regression_points(model_score_3) %>% 
+  mutate(residual_3 = score - score_hat)
+
+evals %>% 
+  group_by(gender) %>% 
+  summarize(avg_score = mean(score))
+
+ggplot(evals, aes(x= rank, y=score)) +
+  geom_boxplot() +
+  labs(x = "rank", y = "score")
+
+evals %>%
+  group_by(rank) %>%
+  summarize(n = n(), mean_score = mean(score), sd_score = sd(score))
+
+# Fit regression model
+model_score_4 <- lm(score ~ rank, data = evals)
+
+# Get regression table
+get_regression_table(model_score_4)
+
+# Fit regression model
+model_score_4 <- lm(score ~ rank, data = evals)
+
+# Get regression table
+get_regression_table(model_score_4)
+
+# teaching mean
+teaching_mean <- 4.28
+
+# tenure track mean
+tenure_track_mean <- 4.28 - 0.13
+
+# tenured mean
+tenured_mean <- 4.28 - 0.145
+
+# Remember that regressions with a categorical variable return group means expressed relative to a baseline for comparison!
+
+#A good prediction of their score would be 4.28 - 0.145 = 4.135.
+
+# Calculate predictions and residuals
+model_score_4_points <- get_regression_points(model_score_4)
+model_score_4_points  
+
+# Plot residuals
+ggplot(model_score_4_points, aes(x=residual)) +
+  geom_histogram() +
+  labs(x = "residuals", title = "Residuals from score ~ rank model")
+#look at the distribution of the residuals. While it seems there are fewer negative residuals corresponding to overpredictions of score, the magnitude of the error seems to be larger (ranging all the way to -2).
+
+
+  
+```
+

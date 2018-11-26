@@ -1,0 +1,137 @@
+---
+title: "Modeling with Multiple Regression"
+author: "Marjorie Blanco"
+date: "11/2/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(moderndive)
+library(ggplot2)
+library(dplyr)
+```
+
+# Modeling with Multiple Regression
+
+```{r}
+house_prices %>%
+  select(price, sqft_living, condition, waterfront) %>%
+  glimpse()
+
+# log10() transform price and size
+house_prices <- house_prices %>%
+  mutate(
+    log10_price = log10(price),
+    log10_size = log10(sqft_living)
+  )
+
+# Fit regression model using formula of form: y ~ x1 + x2
+model_price_1 <- lm(log10_price ~ log10_size + yr_built,
+                    data = house_prices)
+# Output regression table
+get_regression_table(model_price_1)
+
+
+# Create scatterplot with regression line
+ggplot(house_prices, aes(x= bedrooms, y = log10_price)) +
+  geom_point() +
+  labs(x = "Number of bedrooms", y = "log10 price") +
+  geom_smooth(method = "lm", se = FALSE)
+
+# Remove outlier
+house_prices_transform <- house_prices %>%
+  filter(bedrooms < 30)
+
+# Create scatterplot with regression line
+ggplot(house_prices_transform, aes(x = bedrooms, y = log10_price)) +
+  geom_point() +
+  labs(x = "Number of bedrooms", y = "log10 price") +
+  geom_smooth(method = "lm", se = FALSE)
+
+# Fit model
+model_price_2 <- lm(log10_price ~ log10_size + bedrooms, 
+                    data = house_prices)
+
+# Get regression table
+get_regression_table(model_price_2)
+
+#accounting for log10_size, every extra bedroom is associated with a decrease of on average 0.033 in log10_price.
+
+
+# Fit model
+model_price_1 <- lm(log10_price ~ log10_size + yr_built, 
+                    data = house_prices)
+# Get regression table
+get_regression_table(model_price_1)
+
+year <- 1980
+log_size <- 3.07
+model_price_1$coefficients[[1]] + (model_price_1$coefficients[[2]] * log_size) + (model_price_1$coefficients[[3]] * year)
+
+get_regression_points(model_price_1)
+
+
+
+model_price_1 <- lm(log10_price ~ log10_size + bedrooms, 
+                    data = house_prices)
+log_size <- log10(1000)
+bedrooms <- 3
+log_dollars <- model_price_1$coefficients[[1]] + (model_price_1$coefficients[[2]] * log_size) + (model_price_1$coefficients[[3]] * bedrooms)
+
+dollars <- 10^log_dollars
+#Using the values in the regression table you can make predictions of house prices! In this case, your prediction is about $260,000. Let's now apply this procedure to all 21k 
+
+# Automate prediction and residual computation
+get_regression_points(model_price_2)
+
+
+# Automate prediction and residual computation
+get_regression_points(model_price_2) %>%
+  mutate(sq_residuals = residual^2) %>%
+  summarize(sum_sq_residuals = sum(sq_residuals))
+
+#Residuals are leftover points not accounted for in the our regression model.
+
+# Fit model
+model_price_4 <- lm(log10_price~log10_size + waterfront, 
+                    data = house_prices)
+
+# Get regression table
+get_regression_table(model_price_4)
+
+#The intercept for houses with a view of the waterfront is 0.322.
+
+
+# Get regression table
+get_regression_table(model_price_4)
+
+# Prediction for House A
+10^(2.96 + 0.825 * 2.9 + 0.322)
+
+# Prediction for House B
+10^(2.96 + 0.825 * 3.1)
+
+
+# > new_houses_2
+# # A tibble: 2 x 2
+#   log10_size waterfront
+#        <dbl> <lgl>     
+# 1        2.9 TRUE      
+# 2        3.1 FALSE
+
+new_houses <- data.frame(
+  log10_size = c(2.9, 3.1),
+  waterfront = c(TRUE, FALSE)
+)
+
+get_regression_points(model_price_4, newdata = new_houses)
+
+# Get predictions price_hat in dollars on "new" houses
+get_regression_points(model_price_4, newdata = new_houses_2) %>% 
+  mutate(price_hat = 10^(log10_price_hat))
+
+#Predictions of $472,000 and $328,000! Exceptional! You're done with the multiple regression chapter, and now you're onto model assessment and selection!
+
+```
+

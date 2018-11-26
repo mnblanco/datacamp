@@ -1,0 +1,101 @@
+---
+title: 'Supervised Learning in R: Regression'
+author: "Marjorie Blanco"
+date: "11/5/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(broom)
+library(sigr)
+library(ggplot2)
+setwd("~/GitHub/datacamp/regression")
+
+unemployment <- readRDS("~/GitHub/datacamp/regression/unemployment.rds")
+bloodpressure <- readRDS("~/GitHub/datacamp/regression/bloodpressure.rds")
+cricket <- readRDS("~/GitHub/datacamp/regression/cricket.rds")
+houseprice <- readRDS("~/GitHub/datacamp/regression/houseprice.rds")
+load("~/GitHub/datacamp/regression/Income.RData")
+load("~/GitHub/datacamp/regression/Mpg.RData")
+load("~/GitHub/datacamp/regression/Soybean.RData")
+sparrow <- readRDS("~/GitHub/datacamp/regression/sparrow.rds")
+```
+
+# Supervised Learning in R: Regression
+
+## What is Regression?
+
+```{r}
+fmla_1 <- as.formula(temperature ~ chirps_per_sec)
+fmla_2 <- as.formula(blood_pressure ~ age + weight)
+fmla_1 <- as.formula("temperature ~ chirps_per_sec")
+cmodel <- lm(fmla_1, cricket)
+cmodel
+summary(cmodel)
+  
+# unemployment is loaded in the workspace
+summary(unemployment)
+
+# Define a formula to express female_unemployment as a function of male_unemployment
+fmla <- as.formula(female_unemployment ~ male_unemployment)
+
+# Print it
+fmla
+
+# Use the formula to fit a model: unemployment_model
+unemployment_model <- lm(fmla, unemployment)
+
+# Print it
+unemployment_model
+
+# Call summary() on unemployment_model to get more details
+summary(unemployment_model)
+
+# Call glance() on unemployment_model to see the details in a tidier form
+glance(unemployment_model)
+
+# Call wrapFTest() on unemployment_model to see the most relevant details
+wrapFTest(unemployment_model)
+
+
+# newrates is in your workspace
+newrates <- data.frame(male_unemployment = c(5))
+
+# Predict female unemployment in the unemployment data set
+unemployment$prediction <-  predict(unemployment_model, unemployment)
+
+# Make a plot to compare predictions to actual (prediction on x axis). 
+ggplot(unemployment, aes(y = female_unemployment, x = prediction)) + 
+  geom_point() +
+  geom_abline(color = "blue")
+
+```
+
+
+## Training and Evaluating Regression Models
+
+```{r}
+
+```
+
+## Issues to Consider
+
+```{r}
+
+```
+
+## Dealing with Non-Linear Responses
+
+
+```{r}
+
+```
+
+
+## Tree-Based Methods
+
+```{r}
+
+```
+

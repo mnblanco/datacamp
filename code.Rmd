@@ -1,0 +1,124 @@
+---
+title: "Working with Geospatial Data in R"
+author: "Marjorie Blanco"
+date: "11/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, message=FALSE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# Clear packages 
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(
+  paste("package:", names(sessionInfo()$otherPkgs), sep=""), 
+  detach, character.only = TRUE, unload = TRUE)
+
+# Clear environment
+rm(list = ls(all = TRUE))
+
+library(ggmap)
+library(googleway)
+
+
+```
+
+## Basic mapping with ggplot2 and ggmap
+
+```{r}
+register_google(key = "AIzaSyBlh3p_FmzjhFiOZPT558VfInF1fWWoZps")
+set_key("AIzaSyBlh3p_FmzjhFiOZPT558VfInF1fWWoZps")
+
+
+# Coordinates for the location of interest
+nyc <- c(lon = -74.0059, lat = 40.7128)
+# 1. Download the relevant map
+nyc_map <- ggmap(get_googlemap(center = nyc,
+                    key = "AIzaSyBlh3p_FmzjhFiOZPT558VfInF1fWWoZps",
+                    zoom = 10, scale = 2,
+                    maptype ='terrain',
+                    color = 'color'))
+# 2. Display the map
+nyc_map
+ggmap(nyc_map)
+
+
+corvallis <- c(lon = -123.2620, lat = 44.5646)
+
+# Get map at zoom level 5: map_5
+map_6 <- get_map(location = corvallis, zoom =1)
+
+map_5 <- ggmap(get_googlemap(center = corvallis,
+                    key = "AIzaSyBlh3p_FmzjhFiOZPT558VfInF1fWWoZps",
+                    zoom = 5, scale = 2,
+                    maptype ='terrain',
+                    color = 'color'))
+
+# Plot map at zoom level 5
+map_5
+ggmap(map_5)
+
+# Get map at zoom level 13: corvallis_map
+#corvallis_map <- get_map(location = corvallis, zoom = 13, scale = 1)
+corvallis_map <- ggmap(get_googlemap(center = corvallis,
+                    key = "AIzaSyBlh3p_FmzjhFiOZPT558VfInF1fWWoZps",
+                    zoom = 13, scale = 2,
+                    maptype ='terrain',
+                    color = 'color'))
+
+# Plot map at zoom level 13
+corvallis_map
+#ggmap(corvallis_map)
+
+sales <- readRDS("~/GitHub/datacamp/geo/data/01_corv_sales.rds")
+
+# Look at head() of sales
+head(sales)
+
+# Swap out call to ggplot() with call to ggmap()
+ggmap(ggmap = corvallis_map) +
+  geom_point(aes(lon, lat), data = sales)
+
+
+ggmap(corvallis_map_bw) +
+  geom_point(aes(lon, lat, color = year_built), data = sales)
+
+# Plot house sales using qmplot()
+qmplot(lon, lat, data = sales, 
+       geom = "point", color = bedrooms) +
+  facet_wrap(~ month)
+
+
+corvallis <- c(lon = -123.2620, lat = 44.5646)
+
+# Add a maptype argument to get a satellite map
+corvallis_map_sat <- get_map(corvallis, zoom = 13, maptype = "satellite")
+
+# Edit to display satellite map
+ggmap(corvallis_map_sat) +
+  geom_point(aes(lon, lat, color = year_built), data = sales)
+
+# Add source and maptype to get toner map from Stamen Maps
+corvallis_map_bw <- get_map(corvallis, zoom = 13, source = "stamen", maptype = "toner")
+
+# Edit to display toner map
+ggmap(corvallis_map_bw) +
+  geom_point(aes(lon, lat, color = year_built), data = sales)
+
+# Use base_layer argument to ggmap() to specify data and x, y mappings
+ggmap(corvallis_map_bw, base_layer = ggplot(sales, aes(lon, lat))) +
+  geom_point(aes(color = year_built))
+
+# Plot house sales using qmplot()
+qmplot(lon, lat, data = sales, 
+       geom = "point", color = bedrooms) +
+  facet_wrap(~ month)
+
+
+```
+
+
+## Point and polygon data
+
+## Raster data and color
+
+## Data import and projections

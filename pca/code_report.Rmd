@@ -1,0 +1,648 @@
+---
+title: "Dimensionality Reduction in R"
+author: "Marjorie Blanco"
+date: "11/25/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE, message=FALSE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+# Clear packages 
+if(is.null(sessionInfo()$otherPkgs) == FALSE)lapply(
+  paste("package:", names(sessionInfo()$otherPkgs), sep=""), 
+  detach, character.only = TRUE, unload = TRUE)
+
+# Clear environment
+rm(list = ls(all = TRUE))
+
+require(graphics)
+library(ggplot2)
+library(ggthemes)
+library(ggcorrplot)
+library(dplyr)
+library(FactoMineR)
+library(ade4)
+library(factoextra)
+library(paran)
+library(datasets)
+library(psych)
+library(VIM)
+library(missMDA)
+if(!require(pcaMethods)){
+  source("https://bioconductor.org/biocLite.R")
+  biocLite("pcaMethods")
+}
+library(pcaMethods)
+library(NMF)
+library(tibble)
+library(ggcorrplot)
+library(polycor)
+library(GPArotation)
+library(readr)
+library(psych)
+#http://jse.amstat.org/jse_data_archive.htm
+```
+
+
+# Overview
+
+Real-world datasets often include values for many of variables. Our brains cannot efficiently process high-dimensional datasets to dervive with useful, actionable insights. In this post I will look at ways to 
+
+- deal with these multi-dimensional datasets
+
+- uncover and visualize hidden patterns in the data
+
+The three fundamental dimensionality reduction techniques that will be covered are
+
+- Principal component analysis (PCA)
+
+- Non-negative matrix factorisation (NNMF)
+
+- Exploratory factor analysis (EFA)
+
+# Principal component analysis (PCA)
+
+As a data scientist, you'll frequently have to 
+
+frequently dealing with messy and high-dimensional datasets is the bread and butter of any data scientist. In this section, I will cover Principal Component Analysis (PCA) to effectively reduce the dimensionality of any datasets so it is easier to extract actionable insights.  The motivating reason why it is important to reduce dimensionality through techiniques such as PCA is to explain as much data variation as possible while discarding highly correlated variables.
+
+## Curse of Dimensionality
+
+- Dimensions: the number of columns in the dataset that represent features of observations
+
+- Dimensionality: the number of features (column)s characterizing the dataset
+
+- Observed vs True Dimensionality: observed features obscure the true or intrinsic dimensionality of the data.
+
+Deal with the Curse of Dimensionality by removing redundancy.
+
+Note: As the dimensionalities of the data grow, the feature space grows.
+
+## Data
+
+The data used for this analysis is the 2004 New Car and Truck data submitted by 2004 New Car and Truck Data.  The data can be found at JSE Data Archive.
+
+```{r echo=FALSE}
+cars <- read.delim("~/GitHub/datacamp/pca/04cars.dat.txt", header=FALSE, na.strings="*", stringsAsFactors=FALSE)       
+colnames(cars) <-  c("Vehicle.Name","Sports.Car","SUV","Wagon","Minivan","Pickup","AWD","RWD","Retail.Price","Dealer.Cost","Engine.Size","Cyl","HP","City.MPG","Highway.MPG","Weight","Wheel.Base","Length","Width")
+
+cars$City.MPG <- as.integer(cars$City.MPG)
+cars$Weight <- as.integer(cars$Weight)
+cars <- cars %>% na.omit()
+
+cars <- mutate(cars, wheeltype = ifelse(AWD == 1, "AWD", "RWD")) %>% mutate(wheeltype = factor(wheeltype))
+cars <- mutate(cars, type = ifelse(Sports.Car == 1, "Sports Car", ifelse(SUV == 1, "SUV", ifelse(Wagon == 1, "Wagon", ifelse(Minivan == 1, "Minivan", "Pickup"))))) %>% mutate(type = factor(type))
+```
+
+This data set includes features of a number of brands of cars from 2004. The first step is to explore the dataset and attempt to draw useful conclusions from the correlation matrix. Correlation reveals feature resemblance and it is useful to infer how cars are related to each other based on their features' values. The data consist of `r nrow(cars)` observations and `r ncol(cars)` variables.
+
+## PCA
+
+1. Pre-processing steps
+- Data Centering and Standardisation
+2. Change of coordinate system 
+- Rotation and Projection
+3. Explained variance
+- Screeplot and the explained variance
+
+- Explore cars with summary()
+
+```{r echo=TRUE}
+summary(cars)
+```
+
+- Correlation matrix
+
+Correlation matrix is a matrix of correlation coefficients.  Smaller number of dimensions translates to less complex correlation matrix.
+
+```{r}
+car_correl <- hetcor(cars[,9:11], use = "complete.obs")
+car_correl
+```
+
+- PCA with base R's prcomp()
+
+```{r}
+cars_pca <- prcomp(cars[2:19])
+cars_pca
+```
+
+- PCA with FactoMineR's PCA()
+
+PCA for the 10 non-binary numeric variables of car.  PCA generates 2 graphs and extracts the first 5 PCs.
+
+```{r}
+pca_output_ten_v <- PCA(cars[,9:19], ncp = 4, graph = T)
+```
+- Summary of the first 100 cars
+
+Extracting summaries of a subset of the rows in a dataset can be done with the `nbelements` argument.
+
+```{r}
+summary(pca_output_ten_v, nbelements = 100)
+```
+
+- Variance and cumulative variance of the first 3 new dimensions
+
+```{r}
+pca_output_ten_v$eig
+pca_output_ten_v$var$cos2
+pca_output_ten_v$var$contrib  
+dimdesc(pca_output_ten_v)
+pca_output_ten_v$eig[,2][1:3]
+pca_output_ten_v$eig[,3][1:3]
+```
+
+- PCA with active and supplementary variables
+
+ PCA allows you to specify  quantitative supplementary and qualitative supplementary variables.
+
+```{r}
+cars$Vehicle.Name <- NULL
+pca_output_all <- PCA(cars, quanti.sup = 1:7, quali.sup = 19:20, graph = T)
+```
+
+- PCA using the 10 non-binary numeric variables
+
+dudi.pca() is the main function that implements PCA for `ade4` package.  Set the scannf argument to FALSE and use the nf argument for setting the number of axes to retain to suppress the interactive mode and insert the number of axes within the dudi.pca() function.
+
+```{r}
+cars_pca <- dudi.pca(cars[,8:18], scannf = FALSE, nf = 4)
+
+# Explore the summary of cars_pca
+summary(cars_pca)
+
+# Explore the summary of pca_output_ten_v
+summary(pca_output_ten_v)
+```
+
+- Vactor map for the variables
+
+```{r}
+fviz_pca_var(pca_output_all, select.var = list(cos2 = 0.7), repel = TRUE)
+```
+
+- Factor map for the individuals observations
+
+```{r}
+fviz_pca_ind(pca_output_all, select.ind = list(cos2 = 0.7), repel = TRUE)
+```
+
+
+- Barplot for the variables with the highest cos2 in the 1st PC
+
+```{r}
+fviz_cos2(pca_output_all, choice = "var", axes = 1, top = 10)
+```
+
+- Barplot for the variables with the highest cos2 in the 2nd PC
+
+```{r}
+fviz_cos2(pca_output_all, choice = "var", axes = 2, top = 10)
+```
+
+- Factor map for the top 5 variables with the highest contributions
+
+The following plots will identify variables contributions on the extracted principal components.
+
+```{r}
+fviz_pca_var(pca_output_all, select.var = list(contrib = 5), repel = TRUE)
+```
+
+- Factor map for the top 5 individuals with the highest contributions
+
+```{r}
+fviz_pca_ind(pca_output_all, select.ind = list(contrib = 5), repel = TRUE)
+```
+
+- Barplot for the variables with the highest contributions to the 1st PC
+
+```{r}
+fviz_contrib(pca_output_all, choice = "var", axes = 1, top = 5)
+```
+
+- Barplot for the variables with the highest contributions to the 2nd PC
+
+```{r}
+fviz_contrib(pca_output_all, choice = "var", axes = 2, top = 5)
+```
+
+- Biplot with no labels for all individuals with the geom argument
+
+```{r}
+fviz_pca_biplot(pca_output_all, geom = "point")
+```
+
+- Ellipsoids for wheeltype columns
+
+```{r}
+fviz_pca_ind(pca_output_all, habillage = cars$wheeltype, addEllipses = TRUE)
+```
+
+- Biplot with ellipsoids
+
+```{r}
+fviz_pca_biplot(pca_output_all, habillage = cars$wheeltype, addEllipses = TRUE, alpha.var = "cos2")
+```
+
+
+
+# Advanced PCA & Non-negative matrix factorization (NNMF)
+
+In this section I will cover how to deal with missing data using ldimensionality reduction technique called Non-negative matrix factorization (NNMF).  This section will cover:
+
+How many PCs to retain?
+- Kaiser-Guttman rule
+* Keep the PCs with eigenvalue > 1
+- Scree test (constructing the screeplot)
+* Elbow
+- Parallel Analysis
+
+
+## Data
+
+The data used for this analysis is The `airquality` dataset the from the `datasets` package.  This dataset contains daily air quality measurements in New York, May to September 1973.  The data consist of `r nrow(airquality)` observations and `r ncol(airquality)` variables.
+
+- Ozone	numeric	Ozone (ppb)
+- Solar.R	numeric	Solar R (lang)
+- Wind	numeric	Wind (mph)
+- Temp	numeric	Temperature (degrees F)
+- Month	numeric	Month (1--12)
+- Day	numeric	Day of month (1--31)
+
+## PCA
+
+- PCA on the airquality dataset
+
+```{r}
+pca_air <- PCA(airquality)
+```
+
+- Kaiser-Guttman rule
+
+```{r}
+summary(pca_air,  ncp = 4)
+```
+
+## Screeplot test
+
+```{r}
+fviz_screeplot(pca_air, ncp=5)
+```
+
+## Parallel analysis
+
+- Parallel analysis with paran()
+
+```{r}
+air_paran <- paran(airquality[complete.cases(airquality), ])
+```
+
+- Suggested number of PCs to retain using parallel analysis
+
+```{r}
+air_paran$Retained
+```
+
+- Parallel analysis with fa.parallel()
+
+```{r}
+air_fa_parallel <- fa.parallel(airquality)
+```
+
+- Suggested number of PCs to retain using parallel analysis
+
+```{r}
+air_fa_parallel$ncomp
+```
+
+## Missing values
+
+Estimation methods for PCA methods:
+
+- Impute the missing values based on mean of the variable that includes NA values
+- Impute the missing values based on a linear regression regression model
+- Estimate missing values with PCA 
+* missMDA and then FactoMineR 
+* pcaMethods
+
+Mean imputation is problematic because it will distort the distribution of the variables if the data has a lot of missing values.
+
+- Determine if there is the missing data
+
+```{r}
+summary(airquality)
+```
+
+
+- The number of cells with missing values
+
+```{r}
+sum(is.na(airquality))
+```
+
+
+- The number of rows with missing values
+
+```{r}
+nrow(airquality[!complete.cases(airquality),])
+```
+
+## pca()
+
+pca():
+- Uses regression methods for approximation of the correlation matrix
+- Compiles PCA models
+Projects the new points back into the original space
+
+- Estimate the optimal number of dimensions for imputation
+
+```{r}
+estim_ncpPCA(airquality, ncp.max=5) 
+```
+
+The dataset contains 2,225 articles from the BBC news Ibsite corresponding to stories in five topical areas
+from years 2004-2005. Each article is labeled with one of the following five classes: business, entertainment,
+politics, sport, and tech.
+
+```{r}
+cars <- read.delim("~/GitHub/datacamp/pca/04cars.dat.txt", header=FALSE, na.strings="*", stringsAsFactors=FALSE)       
+colnames(cars) <-  c("Vehicle.Name","Sports.Car","SUV","Wagon","Minivan","Pickup","AWD","RWD","Retail.Price","Dealer.Cost","Engine.Size","Cyl","HP","City.MPG","Highway.MPG","Weight","Wheel.Base","Length","Width")
+cars$City.MPG <- as.integer(cars$City.MPG)
+cars$Weight <- as.integer(cars$Weight)
+
+sum(is.na(cars))
+nrow(cars[!complete.cases(cars),])
+
+estim_ncpPCA(cars[,9:19], ncp.max=5) 
+
+#car_pca_methods <- pca(cars[,9:19], nPcs=4, method="ppca", center = TRUE)
+#imp_air_pcamethods <- completeObs(airquality
+```
+
+
+# Exploratory factor analysis (EFA)
+
+Exploratory factor analysis (EFA) is a dimensionality reduction technique that is a natural extension to PCA.  It is suggested to use EFA instead PCA when the variables are of ordinal type.
+
+## Data
+
+`hsq` contains the Humor Styles Questionnaire [HSQ] dataset, which includes responses from 1071 participants on 32 questions. The polychoric correlation was calculated using the mixedCor() function of the `psych` package.
+
+## EFA
+
+```{r}
+hsq <- read.csv("~/GitHub/datacamp/pca/humor_dataset.csv", sep=";")
+hsq_correl <- mixedCor(hsq, c=NULL, p=1:32)
+```
+
+
+- Dimensionality of hsq
+
+```{r}
+dim(hsq)
+```
+
+- Correlation object hsq_correl exploration
+
+```{r}
+str(hsq_correl)
+```
+
+- Correlation matrix of the dataset
+
+```{r, echo=TRUE}
+hsq_polychoric <- hsq_correl$rho
+```
+
+- Correlation structure exploration
+
+```{r}
+ggcorrplot(hsq_polychoric)
+```
+
+
+
+- The Bartlett sphericity test
+
+H0: There is no significant difference between the correlation matrix and the identity matrix of the same dimensionality.
+H1: There is significant difference betweeen them and, thus, we have strong evidence that there are underlying factors.
+
+EFA is suitable when the Bartlett sphericity test result is less than 0.05 (statistically significant).
+
+```{r}
+cortest.bartlett(hsq_polychoric)
+```
+
+- Kaiser-Meyer-Olkin (KMO) measure of sampling adequacy
+
+The closer the value is to 1 the more effectively and reliably the reduction will be.  The factorability tests suggest that I can proceed in reducing `hsq` dimensionality.
+
+
+```{r}
+KMO(hsq_polychoric)
+```
+
+- PAF on hsq_polychoric
+
+Let's look at another popular extraction method, Principal Axis Factoring (PAF). PAF's main idea is that communality has a central role in extracting factors, since it can be interpreted as a measure of an item’s relation to all other items. An iterative approach is adopted. Initially, an estimate of the common variance is given in which the communalities are less than 1. After replacing the main diagonal of the correlation matrix (which usually consists of ones) with these estimates of the communalities, the new correlation matrix is updated and further replacements are repeated based on the new communalities until a number of iterations is reached or the communalities converge to a point that there is too little difference between two consecutive communalities.
+
+
+```{r, echo=TRUE}
+hsq_correl_pa <- fa(hsq_polychoric, nfactors=4, fm="pa")
+```
+
+- Sort the communalities of the f_hsq_pa
+
+Identify variables that load well on the chosen factors
+
+```{r, echo=TRUE}
+f_hsq_pa_common <- sort(hsq_correl_pa$communality, decreasing = TRUE)
+f_hsq_pa_common
+```
+
+- Sort the uniqueness of the f_hsq_pa
+
+```{r, echo=TRUE}
+f_hsq_pa_unique <- sort(hsq_correl_pa$uniqueness, decreasing = TRUE)
+f_hsq_pa_unique
+```
+
+- Scree test and the Kaiser-Guttman criterion
+
+```{r}
+fa.parallel(hsq_polychoric, n.obs = 1069, fm = "minres", fa = "fa")
+```
+
+- Parallel analysis for estimation with the minres extraction method
+
+The charts show both eigen values for  principal components  and principal axis factor analysis
+
+```{r}
+fa.parallel(hsq_polychoric, n.obs = 1069, fm = "minres", fa = "both")
+```
+
+- Parallel analysis for estimation with the mle extraction method
+
+```{r}
+fa.parallel(hsq_polychoric, n.obs = 1069, fm = "mle", fa = "both")
+```
+
+Based on the three tests conducted, 4 factors should be retained.
+
+# Advanced EFA
+
+This section will cover advanced applications of EFA.
+
+- Default rotation method
+
+```{r}
+f_hsq <- fa(hsq_polychoric, nfactors=4, fm="minres", rotate="oblimin")
+f_hsq$rotation
+```
+
+- Promax (oblique) rotation method
+
+```{r}
+f_hsq_promax <- fa(hsq_polychoric, nfactors=4, fm="minres", rotate="promax")
+f_hsq_promax$rotation
+```
+
+- Varimax (orthogonal) rotation method
+
+```{r}
+f_hsq_varimax <- fa(hsq_polychoric, nfactors=4, fm="minres", rotate="varimax")
+f_hsq_varimax$rotation
+```
+
+The Varimax rotation method is most suitable for arriving at the most interpretable EFA model on the `HSQ` dataset.  Decision on the rotation method is based on the clarity of the path diagram and the interpretability of arrow connections,
+
+- Factor loadings
+
+The loadings' matrix is accessible through the loadings attribute.
+
+```{r}
+print(f_hsq$loadings, cut=0)
+```
+
+- Path diagram of the latent factors
+
+```{r}
+fa.diagram(f_hsq)
+```
+
+HSQ measures two positive features for styles of humor:
+
+a) affiliative: 'Q1', 'Q5', 'Q9', 'Q13', 'Q17', 'Q21', 'Q25', 'Q29'
+b) self-enhancing: 'Q2', 'Q6', 'Q10', 'Q14', 'Q18', 'Q22', 'Q26', 'Q30'
+
+HSQ measures two negative features for styles of humor:
+
+c) aggressive: 'Q3', 'Q7', 'Q11', 'Q15', 'Q19', 'Q23', 'Q27', 'Q31'
+d) self-defeating: 'Q4', 'Q8', 'Q12', 'Q16', 'Q20', 'Q24', 'Q28', 'Q32'
+
+The extracted factors `MR1` could measure the affiliative style.  Thisfactor maps to most or all of the questions that correspond to the affiliative style. The classification of the questionnaire items are listed above.
+
+## Data
+
+The `Short Dark Triad` (SD3) dataset that resulted from measuring the 3 dark personality traits:
+- machiavellianism (a manipulative behaviour)
+- narcissism (excessive self-admiration)
+- psychopathy (lack of empathy)
+
+Interactive version of the test: https://openpsychometrics.org/tests/SD3/
+
+```{r}
+SD3 <- readRDS("~/GitHub/datacamp/pca/SD3.RDS")
+```
+
+## EFA: The steps
+
+- Check for data factorability
+- Choose the "right" number of factors to retain
+- Extract factors
+- Rotate factors
+- Interpret the results
+
+### Data factorability
+
+- Explore sdt_sub_correl
+
+The `sdt_sub_correl` has been calculated with the `hetcor(`) function of the polycor package.
+
+```{r}
+sdt_sub_cor <- cor(SD3, use = "complete.obs")
+sdt_sub_correl <- hetcor(SD3, use = "complete.obs")
+ggcorrplot(sdt_sub_cor)
+str(sdt_sub_correl)
+```
+
+# Correlation matrix of the sdt_sub_correl
+
+```{r}
+sdt_polychoric <- sdt_sub_correl$correlations
+```
+
+- Bartlett test on the correlation matrix
+
+```{r}
+cortest.bartlett(sdt_polychoric, n = 100)
+```
+- KMO index.
+
+```{r}
+KMO(sdt_polychoric)
+```
+
+### Choose the "right" number of factors to retain
+
+```{r}
+scree(sdt_polychoric)
+```
+
+The number of factors recommended is 6.
+
+- Parallel analysis for estimation with the minres extraction method
+
+Conduct parallel analysis for estimation with the minres extraction method and the checking the Kaiser-Guttman criterion.
+
+```{r}
+fa.parallel(sdt_polychoric, n.obs = 100, fa = "fa", fm = "minres")
+```
+
+The Kaiser-Gutman and the Scree test suggest 3 and 4 factors
+
+### Extract factors
+
+- EFA with MLE extraction method
+
+A total 4 factors are extracted with the maximum likelihood estimation extraction method
+
+```{r}
+f_sdt <- fa(sdt_polychoric, fm = "ml", nfactors = 4)
+```
+
+### Rotate factors
+
+- Factor loadings
+
+```{r}
+print(f_sdt$loadings, cut=0)
+```
+
+- Path diagram of the latent factors
+
+The path diagram help with drawing conclusions about the underlying factors in the dataset.
+
+```{r}
+fa.diagram(f_sdt)
+```
+
+### Interpret the results
+
+The twenty seven statements of the short dark driad test correspond well to the three personality traits
+
+- machiavellianism (a manipulative attitude)
+- narcissism (excessive self-love)
+- psychopathy (lack of empathy)
