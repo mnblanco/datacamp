@@ -1,0 +1,26 @@
+---
+title: "Joining Data in R with dplyr"
+author: "Marjorie Blanco"
+date: "12/7/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Mutating joins
+
+```{r}
+
+```
+
+## Filtering joins and set operations
+
+
+## Assembling data
+
+## Advanced joining
+
+
+## 
