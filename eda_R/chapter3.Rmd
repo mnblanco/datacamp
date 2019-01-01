@@ -120,7 +120,5 @@ filtered_countries %>% arrange(estimate)
 
 # Sort for the countries decreasing most quickly
 filtered_countries %>% arrange(desc(estimate))
-
-
 ```
 

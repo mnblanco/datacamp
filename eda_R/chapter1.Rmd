@@ -11,6 +11,7 @@ library(dplyr)
 ```
 
 # Data cleaning and summarizing with dplyr
+
 ```{r}
 votes <- readRDS("~/GitHub/datacamp/eda_R/votes.rds")
 
@@ -77,7 +78,5 @@ by_country %>% arrange(desc(percent_yes))
 by_country %>%
   arrange(percent_yes) %>%
   filter(total > 100)
-
-
 ```
 

@@ -95,7 +95,5 @@ filtered_countries <- by_year_country %>%
 ggplot(filtered_countries, aes(year, percent_yes)) +
   geom_line() +
   facet_wrap(~ country, scales = "free_y")
-
-
 ```
 

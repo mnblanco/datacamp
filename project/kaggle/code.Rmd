@@ -2,7 +2,11 @@
 title: "Exploring the Kaggle Data Science Survey"
 author: "Marjorie Blanco"
 date: "12/7/2018"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -154,7 +158,7 @@ ggplot(recommendations, aes(x=LanguageRecommendationSelect, y = n)) +
 facet_wrap(language_preference~.)
 ```
 
-## The moral of the story¶
+## The moral of the story
 So we've made it to the end. We've found that Python is the most popular language used among Kaggle data scientists, but R users aren't far behind. And while Python users may highly recommend that new learners learn Python, would R users find the following statement TRUE or FALSE?
 
 ```{r}
