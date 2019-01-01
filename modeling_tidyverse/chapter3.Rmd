@@ -132,6 +132,5 @@ get_regression_points(model_price_4, newdata = new_houses_2) %>%
   mutate(price_hat = 10^(log10_price_hat))
 
 #Predictions of $472,000 and $328,000! Exceptional! You're done with the multiple regression chapter, and now you're onto model assessment and selection!
-
 ```
 

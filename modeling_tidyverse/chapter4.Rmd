@@ -181,7 +181,5 @@ get_regression_points(train_model_2, newdata = test) %>%
   summarize(rmse = sqrt(mean(sq_residuals)))
 
 #your RMSE using size and condition as predictor variables is 0.167, which is higher than 0.165 when you used size and year built! It seems the latter is marginally better!
-
-
 ```
 

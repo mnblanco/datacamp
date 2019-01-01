@@ -1,0 +1,11 @@
+---
+title: "Unsupervised learning in R"
+subtitle: "Hierarchical clustering"
+author: "Marjorie Blanco"
+date: "1/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```

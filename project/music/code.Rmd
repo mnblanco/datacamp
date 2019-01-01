@@ -8,6 +8,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
 setwd("~/GitHub/datacamp/project/music")
 ```
 
@@ -42,7 +45,7 @@ bb_count <- bb  %>% count(chord) %>%  arrange(desc(n))
 head(bb_count, 20)
 ```
 
-## Visualizing the most common chords¶
+## Visualizing the most common chords
 Of course, it's easier to get a feel for just how common some of these chords are if we graph them and show the percentage of the total chord count represented by each chord. Musicians may notice right away that the most common chords in this corpus are chords that are easy to play on both the guitar and the piano: C, G, A, and D major — and to an extent, F and E major. (They also belong to keys, or scales, that are easy to play on most instruments, so they fit well with melodies and solos, as well.) After that, there is a steep drop off in the frequency with which individual chords appear.
 
 To illustrate this, here is a short video demonstrating the relative ease (and difficulty) of some of the most common (and not-so-common) chords in the McGill Billboard dataset. 

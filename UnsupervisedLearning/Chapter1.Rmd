@@ -1,0 +1,32 @@
+---
+title: "Unsupervised learning in R"
+subtitle: "Unsupervised learning in R"
+author: "Marjorie Blanco"
+date: "1/1/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# Create the k-means model: km.out
+km.out <- kmeans(x, center = 3, nstart = 20)
+
+# Inspect the result
+summary(km.out)
+
+# Print the cluster membership component of the model
+print(km.out$cluster)
+
+# Print the km.out object
+print(km.out)
+
+# Scatter plot of x
+plot(x, col = km.out$cluster, main = "k-means with 3 clusters", xlab = "", ylab = "") 
+
+
+```
+

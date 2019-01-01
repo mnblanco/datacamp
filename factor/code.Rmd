@@ -1,0 +1,285 @@
+---
+title: "FACTOR ANALYSIS IN R"
+author: "Marjorie Blanco"
+date: "12/20/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(psych)
+```
+
+## 
+
+```{r}
+gcbs <- readRDS("~/GitHub/datacamp/factor/GCBS_data.rds")
+str(gcbs)
+EFA_model <- fa(gcbs)
+fa.diagram(EFA_model)
+EFA_model$loadings
+```
+
+Inspecting your dataset
+
+```{r}
+describe(gcbs)
+```
+
+Splitting the dataset
+
+```{r}
+N <- nrow(gcbs)
+indices <- seq(1, N)
+indices_EFA <- sample(indices, floor((.5*N))) 
+indices_CFA <- indices[!(indices %in% indices_EFA)]
+gcbs_EFA <- gcbs[indices_EFA, ] 
+gcbs_CFA <- gcbs[indices_CFA, ]
+```
+
+Inspecting the halves
+
+```{r}
+group_var <- vector("numeric", nrow(gcbs)) 
+group_var[indices_EFA] <- 1 
+group_var[indices_CFA] <- 2
+```
+
+Inspecting the halves
+
+```{r}
+gcbs_grouped <- cbind(gcbs, group_var)
+describeBy(gcbs_grouped, group = group_var) 
+statsBy(gcbs_grouped, group = "group_var")
+```
+
+Correlations
+
+```{r}
+lowerCor(gcbs)
+```
+
+Testing Correlations' Significance: P-values
+
+```{r}
+corr.test(gcbs, use = "pairwise.complete.obs")$p
+```
+
+Testing Correlations' Significance: Confidence Intervals
+
+```{r}
+corr.test(gcbs, use = "pairwise.complete.obs")$ci
+```
+
+Coefficient Alpha
+
+```{r}
+alpha(gcbs)
+```
+
+Split-Half reliability
+
+```{r}
+splitHalf(gcbs)
+```
+
+```{r}
+head(bfi)
+names(bfi)
+```
+
+Setup: Split your dataset
+
+```{r}
+# Establish two sets of indices to split the dataset N <- nrow(bfi)
+indices <- seq(1, N)
+indices_EFA <- sample(indices, floor((.5*N)))
+indices_CFA <- indices[!(indices %in% indices_EFA)]
+# Use those indices to split the dataset into halves for your EFA and CFA 
+bfi_EFA <- bfi[indices_EFA, ]
+bfi_CFA <- bfi[indices_CFA, ]
+head(bfi_EFA)
+head(bfi_CFA)
+```
+
+Calculate the correlation matrix
+
+```{r}
+# Calculate the correlation matrix first
+bfi_EFA_cor <- cor(bfi_EFA, use = "pairwise.complete.obs")
+```
+
+Eigenvalues
+
+```{r}
+# Then use that correlation matrix to calculate eigenvalues 
+eigenvals <- eigen(bfi_EFA_cor)
+# Look at the eigenvalues returned 
+eigenvals$values
+```
+
+Scree Plots
+
+```{r}
+# Calculate the correlation matrix first
+bfi_EFA_cor <- cor(bfi_EFA, use = "pairwise.complete.obs")
+# Then use that correlation matrix to create the scree plot 
+scree(bfi_EFA_cor, factors = FALSE)
+```
+
+Running a multidimensional EFA
+
+```{r}
+# Run the EFA with six factors (as indicated by your scree plot) 
+EFA_model <- fa(bfi_EFA, nfactors = 6)
+# View results from the model object 
+EFA_model
+```
+
+Factor loadings
+
+```{r}
+EFA_model$loadings
+```
+
+Factor scores
+
+```{r}
+head(EFA_model$scores)
+```
+
+Finding the fit statistics
+
+
+```{r}
+# Run the EFA with six factors (as indicated by your scree plot) 
+EFA_model <- fa(bfi_EFA, nfactors = 6)
+# View results from the model object 
+EFA_model
+```
+
+Relative model fit
+
+```{r}
+# Run each theorized EFA on your dataset
+bfi_theory <- fa(bfi_EFA, nfactors = 5) 
+bfi_eigen <- fa(bfi_EFA, nfactors = 6)
+# Compare the BIC values 
+bfi_theory$BIC 
+bfi_eigen$BIC
+bfi_theory$BIC
+bfi_eigen$BIC
+```
+
+Using the wrapper function to set up a CFA
+
+```{r}
+EFA_syn <- structure.sem(EFA_model)
+EFA_syn
+```
+
+Creating CFA syntax from your theory
+
+```{r}
+# Set up syntax specifying which items load onto each factor
+theory_syn_eq <- "
+AGE: A1, A2, A3, A4, A5 
+CON: C1, C2, C3, C4, C5 
+EXT: E1, E2, E3, E4, E5 
+NEU: N1, N2, N3, N4, N5 
+OPE: O1, O2, O3, O4, O5 "
+theory_syn <- cfa(text = theory_syn_eq, reference.indicators = FALSE)
+```
+Relationships between variables and factors
+
+```{r}
+theory_syn
+```
+
+Running the CFA
+
+```{r}
+#Use the sem() function to run a CFA 
+theory_CFA <- sem(theory_syn, data = bfi_CFA)
+```
+
+Interpreting the output
+
+```{r}
+summary(theory_CFA)
+```
+
+Changing the Options
+
+```{r}
+options(fit.indices = c("CFI", "GFI", "RMSEA", "BIC"))
+```
+
+Absolute Model Fit
+
+```{r}
+summary(theory_CFA)
+```
+
+Relative Fit
+
+```{r}
+summary(theory_CFA)
+summary(theory_CFA)$BIC
+```
+
+Relative Fit: Comparing Models
+
+```{r}
+summary(theory_CFA)$BIC
+# Run a CFA using the EFA syntax you created earlier 
+EFA_CFA <- sem(EFA_syn, data = bfi_CFA)
+summary(EFA_CFA)$BIC
+```
+
+Differences in factor loadings
+
+```{r}
+# View the first five rows 
+EFA_model$loadings[1:5,]
+```
+
+Differences in factor loadings
+
+```{r}
+# View the first five loadings from the CFA estimated from the EFA results 
+summary(EFA_CFA)$coeff[1:5,]
+```
+
+Comparing factor loadings
+
+```{r}
+# View the first five loadings from the CFA estimated from the EFA results 
+summary(EFA_CFA)$coeff[1:5,]
+
+# View the first five rows of the EFA loadings 
+EFA_model$loadings[1:5,]
+```
+
+Differences in factor scores
+
+```{r}
+# Extracting factor scores from the EFA model 
+EFA_scores <- EFA_model$scores
+# Calculate factor scores for the EFA dataset 
+CFA_scores <- fscores(EFA_CFA, data = bfi_EFA)
+```
+
+Differences in factor scores, visualized
+
+```{r}
+plot(density(EFA_scores[,1], na.rm = TRUE), xlim = c(-3, 3), ylim = c(0, 1), col = "blue")
+lines(density(CFA_scores[,1], na.rm = TRUE), xlim = c(-3, 3), ylim = c(0, 1), col = "red")
+```
+
+Adding loadings to the syntax
+
+```{r}
+summary(theory_CFA)
+```
+

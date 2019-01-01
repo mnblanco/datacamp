@@ -1,0 +1,9 @@
+---
+title: "Fundamentals of Bayesian Data Analysis in R"
+subtitle: "Bayesian inference with Bayes' theorem"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```

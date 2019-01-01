@@ -139,8 +139,5 @@ ggplot(model_score_4_points, aes(x=residual)) +
   geom_histogram() +
   labs(x = "residuals", title = "Residuals from score ~ rank model")
 #look at the distribution of the residuals. While it seems there are fewer negative residuals corresponding to overpredictions of score, the magnitude of the error seems to be larger (ranging all the way to -2).
-
-
-  
 ```
 

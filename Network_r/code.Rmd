@@ -1,0 +1,128 @@
+---
+title: "Untitled"
+author: "Marjorie Blanco"
+date: "12/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Clear environment
+rm(list = ls(all = TRUE))
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, error=FALSE, warning=FALSE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+# Clear environment
+rm(list = ls(all = TRUE))
+library(igraph)
+```
+
+```{r}
+load("~/GitHub/datacamp/Network_r/StudentCustomers.RData")
+load("~/GitHub/datacamp/Network_r/StudentEdgelist.RData")
+```
+
+## Introduction, networks and labelled networks
+
+```{r}
+DataScienceNetwork <- data.frame(
+from = c('A', 'A', 'A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'D', 'E', 'F', 'F', 'G', 'G', 'H', 'H', 'I'),
+to = c('B','C','D','E','C','D','D', 'G','E', 'F','G','F','G','I', 'I','H','I','J','J'))
+g <- graph_from_data_frame(DataScienceNetwork, directed = FALSE)
+```
+
+```{r}
+pos <- cbind(c(2, 1, 1.5, 2.5, 4, 4.5, 3, 3.5, 5, 6), 
+             c(10.5, 9.5, 8, 8.5, 9, 7.5, 6, 4.5, 5.5, 4))
+plot.igraph(g, edge.label = NA, edge.color = 'black', layout = pos, vertex.label = V(g)$name, vertex.color = 'white', vertex.label.color = 'black', vertex.size = 25)
+```
+
+```{r}
+V(g)$technology <- c('R','R','?','R','R', 'R','P','P','P','P') 
+V(g)$color <- V(g)$technology
+```
+
+```{r}
+V(g)$color <- gsub('R',"blue3", V(g)$color)
+V(g)$color <- gsub('P',"green4", V(g)$color)
+V(g)$color <- gsub('?',"gray", V(g)$color)
+```
+
+```{r}
+# edgeList <-
+#   1 1 393 2 1 2573 3 1 4430 4 393 926 5 393 1574
+```
+
+```{r}
+# Inspect edgeList
+head(edgeList)
+
+# Construct the igraph object
+network <- graph_from_data_frame(edgeList, directed = FALSE)
+
+# View your igraph object
+network
+```
+```{r}
+rNeighbors <- c(4,3,3,5,3,2,3,0,1,0) 
+pNeighbors <- c(0,0,1,1,0,2,2,3,3,2)
+rRelationalNeighbor <- rNeighbors / (rNeighbors + pNeighbors)
+rRelationalNeighbor
+```
+
+```{r}
+# Inspect the customers dataframe
+head(customers)
+
+# Count the number of churners and non-churners
+table(customers$churn)
+
+# Add a node attribute called churn
+V(network)$churn <- customers$churn
+
+# Visualize the network
+plot(network, vertex.label = NA, edge.label = NA,
+    edge.color = 'black', vertex.size = 2)
+```
+
+```{r}
+# Add a node attribute called color
+V(network)$color <- V(network)$churn
+
+# Change the color of churners to red and non-churners to white
+V(network)$color <- gsub("1", "red", V(network)$color) 
+V(network)$color <- gsub("0", "white", V(network)$color)
+
+# Plot the network
+plot(network, vertex.label = NA, edge.label = NA,
+    edge.color = "black", vertex.size = 2)
+```
+
+```{r}
+# Create a subgraph with only churners
+churnerNetwork <- induced_subgraph(network, 
+                    v = V(network)[which(V(network)$churn == 1)])
+                    
+# Plot the churner network 
+plot(churnerNetwork, vertex.label = NA, vertex.size = 2)
+```
+```{r}
+# Compute the churn probabilities
+churnProb <- ChurnNeighbors / (ChurnNeighbors + NonChurnNeighbors)
+
+# Find who is most likely to churn
+mostLikelyChurners <- which(churnProb == max(churnProb))
+
+# Extract the IDs of the most likely churners
+customers$id[mostLikelyChurners]
+```
+
+Splitting the data!
+
+```{r}
+set.seed(1001)
+sampleVertices <- sample(1:10, 6, replace=FALSE) 
+plot(induced_subgraph(g, V(g)[sampleVertices])) 
+plot(induced_subgraph(g, V(g)[-sampleVertices]))
+```
+
+

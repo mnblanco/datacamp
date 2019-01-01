@@ -17,7 +17,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Filtering joins and set operations
 
-
 ## Assembling data
 
 ## Advanced joining

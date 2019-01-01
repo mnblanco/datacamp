@@ -2,7 +2,11 @@
 title: "Functions for Food Price Forecasts"
 author: "Marjorie Blanco"
 date: "12/7/2018"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
 ---
 
 ```{r setup, include=FALSE}
@@ -11,6 +15,7 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 ## Importing important price data
+
 Every time I go to the supermarket, my wallet weeps a little. But how expensive is food around the world? In this notebook, we'll explore time series of food prices in Rwanda from the United Nations Humanitarian Data Exchange Global Food Price Database. Agriculture makes up over 30% of Rwanda's economy, and over 60% of its export earnings (CIA World Factbook), so the price of food is very important to the livelihood of many Rwandans.
 
 The map below shows the layout of Rwanda; it is split into five administrative regions. The central area around the Capital city, Kigali, is one region, and the others are North, East, South, and West.
@@ -19,7 +24,6 @@ A map of the five administrative regions of Rwanda
 
 
 In this notebook, we're going to import, manipulate, visualize and forecast Rwandan potato price data. We'll also wrap our analysis into functions to make it easy to analyze prices of other foods.
-
 
 ```{r}
 # Load the readr and dplyr packages
@@ -64,11 +68,9 @@ potato_prices_renamed <- potato_prices %>% rename(region = adm1_name,
 glimpse(potato_prices_renamed)
 ```
 
-
 ## Spring cleaning
 
 As is often the case in a data analysis, the data we are given isn't in quite the form we'd like it to be. For example, in the last task the month and year were given as integers. Since we'll be performing some time series analysis, it would be helpful if they were provided as dates. Before we can analyze the data, we need to spring clean it.
-
 
 ```{r}
 # Load lubridate
@@ -85,12 +87,12 @@ glimpse(potato_prices_cleaned)
 ```
 
 ## Potatoes are not a balanced diet
+
 As versatile as potatoes are, with their ability to be boiled, roasted, mashed, fried, or chipped, the people of Rwanda have more varied culinary tastes. That means you are going to have to look at some other food types!
 
 If we want to do a similar task many times, we could just cut and paste our code and change bits here and there. This is a terrible idea, since changing code in one place doesn't keep it up to date in the other places, and we quickly end up with lots of bugs.
 
 A better idea is to write a function. That way we avoid cut and paste errors and can have more readable code.
-
 
 ```{r}
 read_price_data <- function(commodity)
@@ -117,8 +119,7 @@ read_price_data <- function(commodity)
   
   prices <- prices %>% 
     mutate(
-      date = ymd(paste(year, month, "01"))
-    ) %>% 
+      date = ymd(paste(year, month, "01"))) %>% 
     select(-month, -year)
   
   return(prices)
@@ -132,8 +133,8 @@ glimpse(pea_prices)
 ```
 
 ## Plotting the price of potatoes
-A great first step in any data analysis is to look at the data. In this case, we have some prices, and we have some dates, so the obvious thing to do is to see how those prices change over time.
 
+A great first step in any data analysis is to look at the data. In this case, we have some prices, and we have some dates, so the obvious thing to do is to see how those prices change over time.
 
 ```{r}
 # Load ggplot2
@@ -146,10 +147,10 @@ ggplot(potato_prices_cleaned, aes(y=price_rwf, x=date, group=market)) +
 ```
 
 ## What a lotta plots
+
 There is a bit of a trend in the potato prices, with them increasing until 2013, after which they level off. More striking though is the seasonality: the prices are lowest around December and January, and have a peak around August. Some years also show a second peak around April or May.
 
 Just as with the importing and cleaning code, if we want to make lots of similar plots, we need to wrap the plotting code into a function.
-
 
 ```{r}
 # Wrap this code into a function
@@ -166,12 +167,12 @@ plot_price_vs_time(pea_prices, "Pea")
 ```
 
 ## Preparing to predict the future (part 1)
+
 While it's useful to see how the prices have changed in the past, what's more exciting is to forecast how they will change in the future. Before we get to that, there are some data preparation steps that need to be performed.
 
 The datasets for each commodity are very rich: rather than being a single time series, they consist of a time series for each market. The fancy way of analyzing these is to treat them as a single hierarchical time series. The easier way, that we'll try here, is to take the average price across markets at each time and analyze the resulting single time series.
 
 Looking at the plots from the potato and pea datasets, we can see that occasionally there is a big spike in the price. That probably indicates a logistic problem where that food wasn't easily available at a particular market, or the buyer looked like a tourist and got ripped off. The consequence of these outliers is that it is a bad idea to use the mean price of each time point: instead, the median makes more sense since it is robust against outliers.
-
 
 ```{r}
 # Group by date, and calculate the median price
@@ -185,6 +186,7 @@ potato_prices_summarized
 ```
 
 ## Preparing to predict the future (part 2)
+
 Time series analysis in R is at a crossroads. The best and most mature tools for analysis are based around a time series data type called ts, which predates the tidyverse by several decades. That means that we have to do one more data preparation step before we can start forecasting: we need to convert our summarized dataset into a ts object.
 
 ```{r}
@@ -204,6 +206,7 @@ potato_time_series
 ```
 
 ## Another day, another function to write
+
 Those data preparation steps were tricky! Wouldn't it be really nice if we never had to write them again? Well, if we wrap that code into a function, then we won't have to.
 
 ```{r}
@@ -228,8 +231,8 @@ pea_time_series <- create_price_time_series(pea_prices)
 pea_time_series
 ```
 
-
 ## The future of potato prices
+
 All the preparation is done and we are ready to start forecasting. One question we might ask is "how do I know if I can trust our forecast?". Recall that both the potato and the pea data had strong seasonality (for example, potatoes were most expensive around August and cheapest around December). For agricultural data, a good forecast should show a similar shape throughout the seasons.
 
 Now then, are we ready to see the future?
@@ -249,10 +252,10 @@ autoplot(potato_price_forecast, main = "Potato price forecast")
 ```
 
 ## The final function
+
 Nice! The forecast shows the spike in potato prices in late summer and the dip toward the end of the year.
 
 With this analysis step, just as the previous steps, to make things repeatable, we need to wrap the code into a function.
-
 
 ```{r}
 # Wrap the code into a function
@@ -262,9 +265,15 @@ plot_price_forecast <- function(time_series, commodity){
 
 # Try the function on the pea data
 plot_price_forecast(pea_time_series, "Pea")
+
+pea_price_forecast <- forecast(pea_time_series)
+
+# Plot the forecast
+plot_price_forecast(pea_price_forecast, "Pea")
 ```
 
 ## Do it all over again
+
 That was a lot of effort writing all that code to analyze the potato data. Fortunately, since we wrapped all the code into functions, we can easily take a look at any other food type.
 
 ### Beans (dry)
@@ -292,7 +301,7 @@ bean_price_forecast <- forecast(bean_time_series)
 bean_price_forecast
 
 # Plot the forecast
-autoplot(bean_price_forecast)
+plot_price_forecast(bean_price_forecast, "Beans")
 ```
 
 ### Cassava
@@ -320,8 +329,9 @@ cassava_price_forecast <- forecast(cassava_time_series)
 cassava_price_forecast
 
 # Plot the forecast
-autoplot(cassava_price_forecast)
+plot_price_forecast(cassava_price_forecast, "Cassava")
 ```
+
 ### Chili (red)
 
 ```{r}
@@ -347,8 +357,9 @@ chili_price_forecast <- forecast(chili_time_series)
 chili_price_forecast
 
 # Plot the forecast
-autoplot(chili_price_forecast)
+plot_price_forecast(chili_price_forecast, "Chili")
 ```
+
 ### Maize
 
 ```{r}
@@ -374,8 +385,9 @@ maize_price_forecast <- forecast(maize_time_series)
 maize_price_forecast
 
 # Plot the forecast
-autoplot(maize_price_forecast)
+plot_price_forecast(maize_price_forecast, "Maize")
 ```
+
 ### Oranges (big size)
 
 ```{r}
@@ -401,8 +413,9 @@ oranges_price_forecast <- forecast(oranges_time_series)
 oranges_price_forecast
 
 # Plot the forecast
-autoplot(oranges_price_forecast)
+plot_price_forecast(oranges_price_forecast, "Oranges")
 ```
+
 ### Sorghums
 
 ```{r}
@@ -428,8 +441,10 @@ sorghum_price_forecast <- forecast(sorghum_time_series)
 sorghum_price_forecast
 
 # Plot the forecast
-autoplot(sorghum_price_forecast)
+plot_price_forecast(sorghum_price_forecast, "Sorghum")
 ```
+
+### Tomatoes
 
 ```{r}
 # Choose tomatoes as the commodity
@@ -454,5 +469,5 @@ tomatoes_price_forecast <- forecast(tomatoes_time_series)
 tomatoes_price_forecast
 
 # Plot the forecast
-autoplot(tomatoes_price_forecast)
+plot_price_forecast(tomatoes_price_forecast, "Tomatoes")
 ```

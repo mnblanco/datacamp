@@ -1,0 +1,187 @@
+---
+title: "Where Are the Fishes?"
+author: "Marjorie Blanco"
+date: "12/8/2018"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+```
+
+## Backscatter - remote sensing in the ocean
+
+Reflections. No, I’m not talking about contemplating your existence within the Tidyverse or understanding what that spline did to your data. I’m talking about echoes. Specifically, sound echoes called “backscatter”. Marine scientists use backscatter to understand the distribution of organisms in the ocean.
+
+In this analysis, we are going to wrangle active acoustic data and plot the mean volume backscatter associated with fish with swim-bladders in relation to bathymetry (depth of the sea floor).
+
+For many marine ecologists, the goal of using active acoustic technologies is to extract biologically relevant quantities from backscatter. What are “biologically relevant quantities,” you ask? Great question! These are data that help us answer the who, what, why, where, when, and how in ecology.
+
+Since World War II, the use of echosounders has allowed scientists to locate and visualize distributions of fish and zooplankton. Echosounders produce sound signals (pings) at specific frequencies and durations that are transmitted into the ocean. When these signals encounter something with a different density than the surrounding water, the signal is reflected back in the direction it came from. Thus, “backscatter”. Backscatter is recorded by the echosounder and useful information is calculated from the received signal, including the position of the source of the scattering (“where”?) and the intensity of the backscatter in decibels (dB) (broadly speaking, the “who/what”?). Active acoustic technologies are a unique remote sensing tool that allows scientists to take an acoustic “snap-shot” of a 3-dimensional environment.
+
+These acoustic data were collected from a research vessel that crossed the shelf break in the Mid-Atlantic Bight (NOAA cruise HB1103) and were preprocessed using the proprietary software, Echoview.
+
+```{r}
+# Load the libraries
+# .... YOUR CODE FOR TASK 1 ....
+library(tidyverse)
+library(lubridate)
+library(geosphere)
+library(gridExtra)
+
+# Read in the depth data
+bottom <- read_csv("project/fishes/datasets/bottom_line.csv", col_types = cols(Ping_date = col_date(format = "%m/%d/%Y")))
+
+# Inspect the first six rows
+# .... YOUR CODE FOR TASK 1 ....
+head(bottom,n=6)
+```
+
+2. What is the "shelf break"?
+
+The red line in the map above is the ship's track across the shelf break in the Mid-Atlantic Bight. But what is the "shelf break"? The shelf break is the submerged edge of the continental shelf and it is characterized by a steep increase in slope gradients. It’s “The Big Drop-off”. In most marine ecosystems the shelf break is also a highly dynamic and productive area that provides a wide range of habitat for many marine species. The smallest phytoplankton to the largest marine mammals, sharks, seabirds, tunas, and sea turtles - they all utilize this area at some point in their life cycles. And, we’re going to play with some active acoustic data from this amazing region!
+
+But first, let's clean up the bathymetry (depth) data and get it ready for plotting.
+
+
+```{r}
+# Clean the bottom data
+bottom_clean <- bottom %>%
+  # .... YOUR CODE FOR TASK 2 ....
+filter(Position_status == 1) %>%
+select(Ping_date, Ping_time, Latitude, Longitude, Depth)  %>%
+  # .... YOUR CODE FOR TASK 2 ....
+  mutate(DT = ymd_hms(paste(Ping_date, Ping_time)),
+       dist = c(0,distHaversine(cbind(Longitude[-n()], Latitude[-n()]),
+                                cbind(Longitude[ -1], Latitude[ -1]))),                         
+       distalong = cumsum(dist),
+       t_diff = c(NA, difftime(DT[ -1], DT[-n()], units = "secs")),
+       m_per_sec = dist/t_diff)
+  
+# Inspect the first six rows
+# .... YOUR CODE FOR TASK 2 ....
+head(bottom_clean,n=6)
+```
+
+3. Where ever you go, there you are
+Now that we have removed the bad data points and calculated the cumulative distance the ship traveled, let's plot the data to see if our calculation makes sense. A horizontal view of the ship's track will show us if the ship deviated from the track line or if there were any breaks in the data. A plot of the depth of the sea floor along the track line will show us the position of the shelf break. In a spatial analysis of the track line data, we would normally work in the packages sp and sf, but that's a topic all its own. For now, we'll do a couple track line plots with the latitude, longitude, depth, and distance along the track line.
+
+
+```{r}
+# Plot a horizontal view of the ship's track line
+# .... YOUR CODE FOR TASK 3 ....
+p_LonLat  <- ggplot(bottom_clean, aes(y=Latitude, x=Longitude)) +
+  geom_point()
+# View the plot
+p_LonLat
+
+# Plot the depth of the sea floor along the track line
+# .... YOUR CODE FOR TASK 3 ....
+p_bthy  <- ggplot(bottom_clean, aes(y=Depth, x=distalong)) +
+  geom_point(size = 0.5) +
+  scale_y_reverse() +
+labs(x = "Distance along trackline (m)", y = "Depth (m)")
+# View the plot
+p_bthy
+```
+
+4. What's the difference?
+It looks like the straight track line isn't so straight. Actually, this happens quite often with data collected in this area. There is a lot of fishing gear in the shelf break region of the Mid-Atlantic Bight and sometimes the ship must divert from the track line to avoid it. It is also possible that the GPS signal was lost for a few minutes. Let's find out what the difference is between the straight-line length of the track line (start point to endpoint) and the cumulative distance the ship traveled.
+
+Calculating the difference between the cumulative meters traveled and the straight-line distance of the track line is a common task - a perfect time to create a function to use on other track line data files!
+
+
+```{r}
+# Create a function to calculate the difference between the cumulative distance the ship traveled 
+# and the start and end points of the track line.
+distance_diff <- function(bottom_data){
+  cumulative_dist <- last(bottom_data$distalong)
+  start <- cbind(first(bottom_data$Longitude), first(bottom_data$Latitude))
+  end <- cbind(last(bottom_data$Longitude), last(bottom_data$Latitude))
+  straight_line_dist <-  distHaversine(start, end)
+  return(round(cumulative_dist - straight_line_dist, 1))
+}
+
+# Run the `distance_diff` on `bottom_clean`
+# .... YOUR CODE FOR TASK 4 ....
+distance_diff(bottom_clean)
+```
+
+5. Here fishy, fishy, fishy...
+In the grand scheme of track line diversions, a 513-meter difference isn't too bad. This difference could play a larger or small role in the data analysis depending on the ecological question being asked. For now, we'll keep it in mind as we load, clean, and plot out the acoustic data.
+
+Volume backscatter is the summation of all the returned echoes within the sampling volume. It's a measure of the relative density of organisms. In this case, because we preprocessed the data in Echoview to look for fish-like scattering, our final plot of the volume backscatter data, Sv_mean, will give us an indication of how fish are distributed along the track line.
+
+
+```{r}
+
+```
+
+6. That's a lot of variables!
+Wow! 726 observations of 78 variables! This is the full data export from Echoview, but remember, we’re only interested in the volume backscatter data, Sv_mean, and the few other variables needed to plot the data.
+
+These backscatter data were integrated into grid cells that are 200 meters along the ship’s path, Interval, by 250 meters deep, Layer, making a coordinate system referenced to the ship’s path and depth. We are going to explore the first depth layer.
+
+
+```{r}
+
+```
+
+7. A little more wrangling
+Great! All this is coming together nicely. In bottom_clean we have depth, distance along the track line, and timestamps. We now also have an almost clean acoustic dataset, Sv_sbf_layer1, with timestamps but no distance along the track line, and no depth information (we'll get to that in a minute). Also, Echoview uses -999.0 to indicate NAs. We need to fix that or our plot will look a little wonky.
+
+
+```{r}
+
+```
+
+8. Can't go spatial? Go temporal
+There is no depth information in the acoustic file. Well, that's not exactly true. One of those 76 variables was a mean depth, but it was an average of an average and it was not as accurate as the depth data we have in bottom_clean.
+
+You might have also noticed that the two data sets have different spatial resolutions. How can we pull the depth data out of bottom_clean and join it with the acoustic data? There are a few different spatial ways to do this, but because we are not working in the spatial packages, we'll write our own function to determine which data points from bottom_clean fall within each along-track Interval by checking to see if the bottom_clean timestamp is within the temporal interval we just created.
+
+
+```{r}
+
+```
+
+9. Depth of an Interval
+Now that we have the spatial Interval value assigned to each data point in bottom_clean_int we can group by the interval value and calculate the mean depth for each along-track Interval.
+
+
+```{r}
+
+```
+
+10. Acoustic data, meet Depth data
+We're almost ready to plot Sv_mean in relation to the bathymetry (depth) and find out where the fishes are along the track line. But first, the two datasets need to be joined. Unfortunately, at the time of writing, the temporal intervals created in lubridate do not play well with joins. We'll have to remove them for the join to work. Also, remember that we're only looking at the first depth layer (0 to 250 m). Because we do not want to insinuate that we're plotting data integrated over the entire water column, we will replace depths greater than 250 m with 250.
+
+
+```{r}
+
+```
+
+11. Putting it all together
+Woohoo! This has been a lot of data wrangling, but we're almost done. It's time to plot out the mean volume backscatter in relation to the bathymetry (depth) along the track line. Because our y-axes are on two different scales, we'll create two plots and use a function from gridExtra to put them in one figure.
+
+
+```{r}
+
+```
+
+12. So, where are the fishes?
+Nice looking plot!
+
+If we assume all the backscatter energy is only from fishes with swim bladders, and greater backscatter indicates more fish, where are most of the fish on this track line?
+
+
+```{r}
+
+```
+

@@ -132,20 +132,20 @@ cars_pca
 
 PCA for the 10 non-binary numeric variables of car.  PCA generates 2 graphs and extracts the first 5 PCs.
 
-```{r}
+```{r, echo=TRUE}
 pca_output_ten_v <- PCA(cars[,9:19], ncp = 4, graph = T)
 ```
 - Summary of the first 100 cars
 
 Extracting summaries of a subset of the rows in a dataset can be done with the `nbelements` argument.
 
-```{r}
+```{r, echo=TRUE}
 summary(pca_output_ten_v, nbelements = 100)
 ```
 
 - Variance and cumulative variance of the first 3 new dimensions
 
-```{r}
+```{r, echo=TRUE}
 pca_output_ten_v$eig
 pca_output_ten_v$var$cos2
 pca_output_ten_v$var$contrib  
@@ -167,7 +167,7 @@ pca_output_all <- PCA(cars, quanti.sup = 1:7, quali.sup = 19:20, graph = T)
 
 dudi.pca() is the main function that implements PCA for `ade4` package.  Set the scannf argument to FALSE and use the nf argument for setting the number of axes to retain to suppress the interactive mode and insert the number of axes within the dudi.pca() function.
 
-```{r}
+```{r, echo=TRUE}
 cars_pca <- dudi.pca(cars[,8:18], scannf = FALSE, nf = 4)
 
 # Explore the summary of cars_pca
