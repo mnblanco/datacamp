@@ -4,6 +4,119 @@ subtitle: "What is Bayesian Data Analysis?"
 output: html_document
 ---
 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(purrr)
+library(tibble)
+library(forcats)
+library(ggplot2)
+library(ggjoy)
 ```
+
+```{r}
+x <- c(3164, 3362, 4435, 3542, 3578, 4529)
+
+
+# Explore using rnorm and dnorm
+mu <- 3700
+sigma <- 550
+
+weight_distr <- rnorm(n = 100000, mean = mu, sd = sigma)
+hist(weight_distr, 60, xlim = c(0, 6000), col = "lightgreen")
+
+weight <- seq(from=0, to = 6000, by = 100)
+
+likelihood <- dnorm(x = weight, mean = mu, sd = sigma)
+
+plot(weight, likelihood, type = "h")
+```
+
+
+```{r}
+prop_model <- function (data = c(), prior_prop = c(1, 1), n_draws = 10000, 
+    show_plot = TRUE) 
+{
+    data <- as.logical(data)
+    proportion_success <- c(0, seq(0, 1, length.out = 100), 1)
+    data_indices <- round(seq(0, length(data), length.out = min(length(data) + 
+        1, 20)))
+    post_curves <- map_dfr(data_indices, function(i) {
+        value <- ifelse(i == 0, "Prior", ifelse(data[i], "Success", 
+            "Failure"))
+        label <- paste0("n=", i)
+        probability <- dbeta(proportion_success, prior_prop[1] + 
+            sum(data[seq_len(i)]), prior_prop[2] + sum(!data[seq_len(i)]))
+        probability <- probability/max(probability)
+        data_frame(value, label, proportion_success, probability)
+    })
+    post_curves$label <- fct_rev(factor(post_curves$label, levels = paste0("n=", 
+        data_indices)))
+    post_curves$value <- factor(post_curves$value, levels = c("Prior", 
+        "Success", "Failure"))
+    p <- ggplot(post_curves, aes(x = proportion_success, y = label, 
+        height = probability, fill = value)) + geom_joy(stat = "identity", 
+        color = "white", alpha = 0.8, panel_scaling = TRUE, size = 1) + 
+        scale_y_discrete("", expand = c(0.01, 0)) + scale_x_continuous("Underlying proportion of success") + 
+        scale_fill_manual(values = hcl(120 * 2:0 + 15, 100, 65), 
+            name = "", drop = FALSE, labels = c("Prior   ", "Success   ", 
+                "Failure   ")) + theme_light(base_size = 18) + 
+        theme(legend.position = "top")
+    if (show_plot) {
+        print(p)
+    }
+    invisible(rbeta(n_draws, prior_prop[1] + sum(data), prior_prop[2] + 
+        sum(!data)))
+}
+```
+
+
+```{r}
+# Define the data and run prop_model
+data = c(1, 0, 0, 1)
+prop_model(data)
+```
+
+Question
+Looking at the final probability distribution at n=4, what information does the model have regarding the underlying proportion of heads?
+
+It's most likely around 50%, but there is large uncertainty.
+
+Let's say the zombie apocalypse is upon us and we have come up with a new experimental drug to cure zombieism. We have no clue how effective it's going to be, but when we gave it to 13 zombies two of them turned human again.
+
+
+```{r}
+# Update the data and rerun prop_model
+data = c(1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+prop_model(data)
+```
+
+Question
+The model implemented in prop_model makes more sense here as we had no clue how good the drug would be. The final probability distribution (at n=13) represents what the model now knows about the underlying proportion of cured zombies. What proportion of zombies would we expect to turn human if we administered this new drug to the whole zombie population?
+
+Between 5% to 40%.
+
+```{r}
+data = c(1, 0, 0, 1, 0, 0,
+         0, 0, 0, 0, 0, 0, 0)
+         
+# Extract and explore the posterior
+posterior <- prop_model(data)
+head(posterior)
+hist(posterior, breaks = 30, col = "palegreen4", xlim = c(0, 1))
+```
+
+```{r}
+data = c(1, 0, 0, 1, 0, 0,
+         0, 0, 0, 0, 0, 0, 0)
+posterior <- prop_model(data)
+hist(posterior, breaks = 30, xlim = c(0, 1), col = "palegreen4")
+
+# Calculate some measures of interest using the posterior
+median(posterior)
+sd(posterior)
+mean(posterior)
+quantile(posterior, c(0.05, 0.95))
+sum(posterior > 0.07) / length(posterior)
+```
+

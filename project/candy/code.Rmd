@@ -1,0 +1,191 @@
+---
+title: "Functions for Food Price Forecasts"
+author: "Marjorie Blanco"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+```
+
+#
+
+## Candy Crush Saga
+
+Candy Crush Saga is a hit mobile game developed by King (part of Activision|Blizzard) that is played by millions of people all around the world. The game is structured as a series of levels where players need to match similar candy together to (hopefully) clear the level and keep progressing on the level map. If you are one of the few that haven't played Candy Crush, here's a short demo:
+
+
+Candy Crush has more than 3000 levels, and new ones are added every week. That is a lot of levels! And with that many levels, it's important to get level difficulty just right. Too easy and the game gets boring, too hard and players become frustrated and quit playing.
+
+In this project, we will see how we can use data collected from players to estimate level difficulty. Let's start by loading in the packages we're going to need.
+
+```{r}
+# This sets the size of plots to a good default.
+options(repr.plot.width = 5, repr.plot.height = 4)
+
+# Loading in packages
+# .... YOUR CODE FOR TASK 1 ....
+library(readr)
+library(dplyr)
+library(ggplot2)
+```
+
+## The data set
+The dataset we will use contains one week of data from a sample of players who played Candy Crush back in 2014. The data is also from a single episode, that is, a set of 15 levels. It has the following columns:
+
+player_id: a unique player id
+dt: the date
+level: the level number within the episode, from 1 to 15.
+num_attempts: number of level attempts for the player on that level and date.
+num_success: number of level attempts that resulted in a success/win for the player on that level and date.
+The granularity of the dataset is player, date, and level. That is, there is a row for every player, day, and level recording the total number of attempts and how many of those resulted in a win.
+
+
+```{r}
+# Reading in the data
+data <- read_csv("project/candy/datasets/candy_crush.csv")
+
+# Printing out the first couple of rows
+# .... YOUR CODE FOR TASK 2 ....
+head(data)
+```
+
+## Checking the data set¶
+Now that we have loaded the dataset let's count how many players we have in the sample and how many days worth of data we have.
+
+```{r}
+print("Number of players:") 
+# .... YOUR CODE FOR TASK 3 ....
+distinct(data, player_id) %>% count()
+
+print("Period for which we have data:")
+# .... YOUR CODE FOR TASK 3 ....
+range(data$dt)
+```
+
+## Computing level difficulty¶
+Within each Candy Crush episode, there is a mix of easier and tougher levels. Luck and individual skill make the number of attempts required to pass a level different from player to player. The assumption is that difficult levels require more attempts on average than easier ones. That is, the harder a level is, the lower the probability to pass that level in a single attempt is.
+
+A simple approach to model this probability is as a Bernoulli process; as a binary outcome (you either win or lose) characterized by a single parameter pwin: the probability of winning the level in a single attempt. This probability can be estimated for each level as:
+
+
+
+For example, let's say a level has been played 10 times and 2 of those attempts ended up in a victory. Then the probability of winning in a single attempt would be pwin = 2 / 10 = 20%.
+
+Now, let's compute the difficulty pwin separately for each of the 15 levels.
+
+```{r}
+# Calculating level difficulty
+difficulty <- data %>% group_by(level) %>% summarise(wins = sum(num_success),
+                                                  attempts = sum(num_attempts)) %>%
+mutate(p_win = wins/attempts)
+
+# Printing out the level difficulty
+# .... YOUR CODE FOR TASK 4 ....
+print(difficulty)
+```
+
+## Plotting difficulty profile¶
+
+Great! We now have the difficulty for all the 15 levels in the episode. Keep in mind that, as we measure difficulty as the probability to pass a level in a single attempt, a lower value (a smaller probability of winning the level) implies a higher level difficulty.
+
+Now that we have the difficulty of the episode we should plot it. Let's plot a line graph with the levels on the X-axis and the difficulty (pwin) on the Y-axis. We call this plot the difficulty profile of the episode.
+
+```{r}
+# Plotting the level difficulty profile
+# .... YOUR CODE FOR TASK 5 ....
+ggplot(difficulty, aes(y=p_win, x=level)) +
+geom_line() +
+scale_x_continuous(breaks = c(1:15)) +
+scale_y_continuous(labels = scales::percent)
+```
+
+## Spotting hard levels¶
+What constitutes a hard level is subjective. However, to keep things simple, we could define a threshold of difficulty, say 10%, and label levels with pwin < 10% as hard. It's relatively easy to spot these hard levels on the plot, but we can make the plot more friendly by explicitly highlighting the hard levels.
+
+```{r}
+# Adding points and a dashed line
+# .... YOUR CODE COPIED FROM TASK 5 ....
+ggplot(difficulty, aes(y=p_win, x=level)) +
+geom_line() +
+scale_x_continuous(breaks = c(1:15)) +
+scale_y_continuous(labels = scales::percent) +
+# .... YOUR CODE FOR TASK 6 ....
+geom_point() +
+geom_hline(yintercept = .1)
+```
+
+## Computing uncertainty¶
+
+As Data Scientists we should always report some measure of the uncertainty of any provided numbers. Maybe tomorrow, another sample will give us slightly different values for the difficulties? Here we will simply use the Standard error as a measure of uncertainty:
+
+
+$$\sigma_{error} \sim \sigma_{sample} / \sqrt{n}$$
+
+
+
+Here n is the number of datapoints and σsample is the sample standard deviation. For a Bernoulli process, the sample standard deviation is:
+
+$$\sigma_{sample} = \sqrt{P_{win} (1-P_{win})} $$
+
+Therefore, we can calculate the standard error like this:
+
+$$\sigma_{sample} \sim \sqrt{P_{win} (1-P_{win}) / n} $$
+
+
+We already have all we need in the difficulty data frame! Every level has been played n number of times and we have their difficulty pwin. Now, let's calculate the standard error for each level.
+
+```{r}
+# Computing the standard error of p_win for each level
+difficulty <- difficulty %>%
+    # .... YOUR CODE FOR TASK 7 HERE ....
+mutate(error = sqrt(p_win * (1 - p_win) / attempts) )
+```
+
+
+## Showing uncertainty
+Now that we have a measure of uncertainty for each levels' difficulty estimate let's use error bars to show this uncertainty in the plot. We will set the length of the error bars to one standard error. The upper limit and the lower limit of each error bar should then be $p_{win} + σ_{error}$ and $p_{win} - σ_{error}$, respectively.
+
+```{r}
+# Adding standard error bars
+# .... YOUR CODE COPIED FROM TASK 6 ....
+ggplot(difficulty, aes(y=p_win, x=level)) +
+geom_line() +
+scale_x_continuous(breaks = c(1:15)) +
+scale_y_continuous(labels = scales::percent) +
+geom_point() +
+geom_hline(yintercept = .1) +
+# .... YOUR CODE FOR TASK 8 ....
+geom_errorbar(aes(ymin = p_win - error, ymax = p_win + error))
+```
+
+
+## A final metric
+It looks like our difficulty estimates are pretty precise! Using this plot, a level designer can quickly spot where the hard levels are and also see if there seems to be too many hard levels in the episode.
+
+One question a level designer might ask is: "How likely is it that a player will complete the episode without losing a single time?" Let's calculate this using the estimated level difficulties!
+
+```{r}
+x# The probability of completing the episode without losing a single time
+p <- prod(difficulty$p_win)
+
+# Printing it out
+p
+```
+
+
+## Should our level designer worry?¶
+Given the probability we just calculated, should our level designer worry about that a lot of players might complete the episode in one attempt?
+
+```{r}
+# Should our level designer worry about that a lot of 
+# players will complete the episode in one attempt?
+should_the_designer_worry = FALSE
+```
+
+

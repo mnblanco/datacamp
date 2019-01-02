@@ -7,3 +7,202 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+```{r}
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 1, shape2 = 1)
+
+# Visualize the results
+hist(beta_sample)
+
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 100, shape2 = 100)
+
+# Visualize the results
+hist(beta_sample)
+
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 100, shape2 = 20)
+
+# Visualize the results
+hist(beta_sample)
+```
+
+Pick the prior that best captures the information
+The new information you got from the social media company was:
+
+Most ads get clicked on 5% of the time, but for some ads it is as low as 2% and for others as high as 8%.
+
+There are many different probability distributions that one can argue captures this information.
+
+Out of the four Beta distribution shown below, which captures this information the best?
+
+```{r}
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 3, shape2 = 12)
+
+# Visualize the results
+hist(beta_sample)
+
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 15, shape2 = 75)
+
+# Visualize the results
+hist(beta_sample)
+
+
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 5, shape2 = 95)
+
+# Visualize the results
+hist(beta_sample)
+
+# Explore using the rbeta function
+beta_sample <- rbeta(n = 1000000, shape1 = 30, shape2 = 10)
+
+# Visualize the results
+hist(beta_sample)
+```
+
+c. 
+Look for a distribution that roughly covers the range 2% to 8%, that is, 0.02 to 0.08.
+
+```{r}
+n_draws <- 100000
+n_ads_shown <- 100
+
+# Change the prior on proportion_clicks
+proportion_clicks <- 
+  rbeta(n_draws, shape1 = 5, shape2 = 95)
+n_visitors <- 
+  rbinom(n_draws, size = n_ads_shown, 
+         prob = proportion_clicks)
+prior <- 
+  data.frame(proportion_clicks, n_visitors)
+posterior <- 
+  prior[prior$n_visitors == 13, ]
+
+# This plots the prior and the posterior in the same plot
+par(mfcol = c(2, 1))
+hist(prior$proportion_clicks, 
+     xlim = c(0, 0.25))
+hist(posterior$proportion_clicks, 
+     xlim = c(0, 0.25))
+```
+Fit the model using another dataset
+Let's fit the binomial model to both the video ad data (13 out of 100 clicked) and the new text ad data (6 out of a 100 clicked).
+
+```{r}
+n_draws <- 100000
+n_ads_shown <- 100
+proportion_clicks <- runif(n_draws, min = 0.0, max = 0.2)
+n_visitors <- rbinom(n = n_draws, size = n_ads_shown, 
+                     prob = proportion_clicks)
+prior <- data.frame(proportion_clicks, n_visitors)
+
+# Create the posteriors for video and text ads
+posterior_video <- prior[prior$n_visitors == 13, ]
+posterior_text <- prior[prior$n_visitors == 6, ]
+
+# Visualize the posteriors
+hist(posterior_video$proportion_clicks, xlim = c(0, 0.25))
+hist(posterior_text$proportion_clicks, xlim = c(0, 0.25))
+```
+
+Question
+Looking at the histogram of posterior_text what can be said about the value of the proportion of clicks for the text ad?
+It's likely between 0.03 and 0.13.
+
+```{r}
+posterior <- data.frame(
+    video_prop = posterior_video$proportion_clicks[1:4000],
+    text_prop  = posterior_text$proportion_click[1:4000])
+    
+# Calculate the posterior difference: video_prop - text_prop
+posterior$prop_diff <- posterior$video_prop - posterior$text_prop
+
+# Visualize prop_diff
+ hist(posterior$prop_diff, xlim = c(0, 0.25))
+
+median(posterior$prop_diff)
+# Summarize prop_diff
+sum(posterior$prop_diff > 0) / length(posterior$prop_diff)
+```
+
+Question
+Given the model and the data, what is the probability that the video ad is better than the text ad? (Here better means having a higher proportion of clicks.)
+
+
+95%
+
+```{r}
+video_cost <- 0.25
+text_cost <- 0.05
+visitor_spend <- 2.53
+
+posterior$video_profit <- 
+  posterior$video_prop * visitor_spend - video_cost
+posterior$text_profit <-
+  posterior$text_prop * visitor_spend - text_cost
+posterior$profit_diff <- posterior$video_profit - posterior$text_profit
+
+hist(posterior$video_profit)
+hist(posterior$text_profit)
+```
+```{r}
+# Add the column posterior$profit_diff
+posterior$profit_diff <- posterior$video_profit - posterior$text_profit
+
+# Visualize posterior$profit_diff
+hist(posterior$profit_diff)
+
+# Calculate a "best guess" for the difference in profits
+median(posterior$profit_diff)
+
+# Calculate the probability that text ads are better than video ads
+sum(posterior$profit_diff < 0) / length(posterior$profit_diff)
+head(posterior)
+```
+
+Question
+So it seems that the evidence does not strongly favor neither text nor video ads.
+
+But if forced to choose at this point, what would you choose?
+
+Text ads
+
+
+```{r}
+# Simulate from a Poisson distribution and visualize the result
+x <- rpois(n = 10000, lambda = 3)
+hist(x)
+
+# Simulate from a Poisson distribution and visualize the result
+x <- rpois(n = 10000, lambda = 11.5)
+hist(x)
+
+mean(x >= 15)
+```
+
+Question
+Is it likely that you will break even on a cloudy day, or should you stay at home?
+Let's stay at home and wait for a sunny day.
+
+```{r}
+# Change this model so that it uses a Poisson distribution instead
+n_draws <- 100000
+mean_clicks <- runif(n_draws, min = 0, max = 80)
+n_visitors <- rpois(n = n_draws, lambda = mean_clicks)
+                     
+prior <- data.frame(mean_clicks, n_visitors)
+posterior <- prior[prior$n_visitors == 19, ]
+hist(prior$mean_clicks)
+hist(posterior$mean_clicks)
+```
+
+Question
+The model is complete! Like before you could now calculate credible probability intervals using quantile or calculate the probability of getting more than, say, 15 clicks next day. But just looking at the posterior probability distribution:
+
+What range could you expect the mean number of daily clicks to be in?
+
+12 to 28 daily clicks on average

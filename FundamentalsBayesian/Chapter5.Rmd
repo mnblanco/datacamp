@@ -1,9 +1,194 @@
 ---
 title: "Fundamentals of Bayesian Data Analysis in R"
-subtitle: "Bayesian inference with Bayes' theorem"
+subtitle: "More parameters, more data, and more Bayes"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(purrr)
+library(tibble)
+library(forcats)
+library(ggplot2)
+library(ggjoy)
+library(lattice)
 ```
+
+```{r}
+temp   <- c(19, 23, 20, 17, 23)
+temp_f <- c(66, 73, 68, 63, 73)
+like <- dnorm(x = temp, mean = 20, sd = 2)
+like
+prod(like)
+log(like)
+
+
+```
+
+```{r}
+x <- c(3164, 3362, 4435, 3542, 3578, 4529)
+
+# Explore using rnorm and dnorm
+mu <- 3700
+sigma <- 550
+
+weight_distr <- rnorm(n = 100000, mean = mu, sd = sigma)
+hist(weight_distr, 60, xlim = c(0, 6000), col = "lightgreen")
+
+weight <- seq(from=0, to = 6000, by = 100)
+
+likelihood <- dnorm(x = weight, mean = mu, sd = sigma)
+
+plot(weight, likelihood, type = "h")
+```
+
+```{r}
+n_ads_shown <- 100
+n_visitors <- 13
+
+temp <- c(19, 23, 20, 17, 23)
+mu <- seq(8, 30, by = 0.5)
+sigma <- seq(0.1, 10, by = 0.3)
+pars <- expand.grid(proportion_clicks = proportion_clicks)
+pars$prior <- dunif(pars$proportion_clicks, min = 0, max = 0.2) 
+pars$likelihood <- dbinom(n_visitors, 
+    size = n_ads_shown, prob = pars$proportion_clicks)
+pars$probability <- pars$likelihood * pars$prior
+pars$probability <- pars$probability / sum(pars$probability)
+
+plot(pars, pch=19)
+
+```
+
+```{r}
+# The IQ of a bunch of zombies
+iq <- c(55, 44, 34, 18, 51, 40, 40, 49, 48, 46)
+# Defining the parameter grid
+pars <- expand.grid(mu = seq(0, 150, length.out = 100), 
+                    sigma = seq(0.1, 50, length.out = 100))
+# Defining and calculating the prior density for each parameter combination
+pars$mu_prior <- dnorm(pars$mu, mean = 100, sd = 100)
+pars$sigma_prior <- dunif(pars$sigma, min = 0.1, max = 50)
+pars$prior <- pars$mu_prior * pars$sigma_prior
+# Calculating the likelihood for each parameter combination
+for(i in 1:nrow(pars)) {
+  likelihoods <- dnorm(iq, pars$mu[i], pars$sigma[i])
+  pars$likelihood[i] <- prod(likelihoods)
+}
+# Calculate the probability of each parameter combination
+pars$probability <- pars$likelihood * pars$prior / sum(pars$likelihood * pars$prior)
+
+levelplot(probability ~ mu * sigma, data = pars)
+```
+
+What is the most probable mean (mu) of the IQ of Zombies? Roughly how uncertain is the estimate of mu?
+
+A mean IQ of 42 ± 10
+
+
+```{r}
+head(pars)
+sample_indices <- sample( nrow(pars), size = 10000,
+    replace = TRUE, prob = pars$probability)
+head(sample_indices)
+
+# Sample from pars to calculate some new measures
+pars_sample <- pars[sample_indices, c("mu", "sigma")]
+
+# Visualize pars_sample
+hist(pars_sample$mu)
+
+# Calculate the 0.025, 0.5 and 0.975 quantiles of pars_sample$mu
+quantile(pars_sample$mu , probs = c(0.025, 0.5, 0.975 ))
+```
+
+
+Question
+The 50% quantile you just calculated is the same as the median and a good candidate for a "best guess" for the mean IQ of a zombie, and the 2.5% and 97.5% quantiles form a 95% credible interval.
+
+When submitting this result to The Journal of Zombieology, which of the following sentence should we put into the result section?
+Keep in mind that as pars_sample$mu is a random sample, the numbers you've calculated might differ slightly from the possible answers below.
+
+
+We estimate the mean zombie IQ to be 42 (95% CI: [35, 50])
+
+
+```{r}
+head(pars_sample)
+pred_iq <- rnorm(10000, mean = pars_sample$mu, 
+                 sd = pars_sample$sigma)
+# Visualize pred_iq
+hist(pred_iq)
+
+# Calculate the probability of a zombie being "smart" (+60 IQ)
+mean(pred_iq >= 60)
+```
+
+```{r}
+library(BEST)
+iq <- c(55, 44, 34, 18, 51, 40, 40, 49, 48, 46)
+fit <- BESTmcmc(iq)
+fit
+plot(fit)
+```
+
+
+Question
+Zombies with an IQ of 60 or more are of moderate intelligence, and much more dangerous! (They can open doors!)
+
+How nervous should you be that the next zombie you meet will be one of these smart zombies?
+
+The risk is relatively low but still very real. I always carry my zombie repellent spray!
+
+
+Question
+This plot shows the posterior probability distribution over the difference in means between iq_brains and iq_regular. On top of this you get:
+
+(1) The mean of the posterior as a "best guess" for the difference.
+
+(2) A 95% credible interval (called a 95% Highest Density Interval in the plot).
+
+(3) The amount of probability below and above zero difference.
+
+```{r}
+# The IQ of zombies on a regular diet and a brain based diet.
+iq_brains <- c(44, 52, 42, 66, 53, 42, 55, 57, 56, 51)
+iq_regular <- c(55, 44, 34, 18, 51, 40, 40, 49, 48, 46)
+
+# Calculate the mean difference in IQ between the two groups
+mean(iq_brains) - mean(iq_regular)
+
+# Fit the BEST model to the data from both groups
+library(BEST)
+best_posterior <- BESTmcmc(iq_brains, iq_regular)
+
+# Plot the model result
+plot(best_posterior)
+```
+
+What would be a reasonable conclusion to draw from this analysis?
+
+There is some evidence that eating brains makes zombies smarter, but it's uncertain by how much.
+
+
+```{r}
+# The IQ of zombies given a regular diet and a brain based diet.
+iq_brains <- c(44, 52, 42, 66, 53, 42, 55, 57, 56, 51)
+iq_regular <- c(55, 44, 34, 18, 51, 40, 40, 49, 48, 150)
+
+# Modify the data above and calculate the difference in means
+ mean(iq_brains) - mean(iq_regular)
+
+# Fit the BEST model to the modified data and plot the result
+library(BEST)
+best_posterior <- BESTmcmc(iq_brains, iq_regular)
+plot(best_posterior)
+```
+
+
+Question
+Looking at the plot, we see that the mutant zombie data point has made BEST more uncertain to some degree. But since BEST is robust to outliers, it still estimates that brain-eating zombies are more likely to have a higher IQ than zombies on a regular diet.
+
+What conclusion should we draw?
+
+There is weak evidence that eating brains make zombies smarter. And we should be better at screening for mutant zombies when doing experiments.

@@ -1,7 +1,6 @@
 ---
 title: "Functions for Food Price Forecasts"
 author: "Marjorie Blanco"
-date: "12/7/2018"
 output:
   html_document:
     toc: true
